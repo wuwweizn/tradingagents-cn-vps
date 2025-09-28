@@ -1,4 +1,4 @@
-# TradingAgents 中文增强版二次开发带批量分析
+# TradingAgents-cn 中文增强版二次开发带批量分析-会员管理运营版
 
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 [![Python](https://img.shields.io/badge/Python-3.10%2B-blue.svg)](https://www.python.org/)
@@ -14,9 +14,18 @@
 
 感谢 [Tauric Research](https://github.com/TauricResearch) 团队创造的革命性多智能体交易框架 [TradingAgents](https://github.com/TauricResearch/TradingAgents)！
 感谢hsliuping/TradingAgents-CN（https://github.com/hsliuping/TradingAgents-CN）团队完善中文版本，增强版本性能
+## 🆕版本 v0.1.15 PLUS版二开增加内容
+### 🚀 admin后台增加会员管理功能，可增删查改会员，可修改会员使用点数，单股分析1次扣点数1点，批量分析按股票个数扣点
+### 🤖 除原版功能外，增加批量分析股票板块，可批量依次分析多个股票，大大节约精力和时间
+### 📚 初次使用批量分析板块要求绑定机器码，高手可在程序中找到，怕麻烦的请star后把机器码发到邮箱ws3101001@126.com,第一时间回复
+### 🤖 安装方法参见原版，水平有限，如有疏漏请勿见怪！
+### 🎯 比较遗憾的是没有做到会员独立线程分析，希望下一个版本能完善。
+<img width="1636" height="796" alt="1" src="https://github.com/user-attachments/assets/b88f32dc-6d2a-4314-b5f2-7f251ce57f38" />
+<img width="1768" height="785" alt="2" src="https://github.com/user-attachments/assets/ecf5ddbf-f275-4721-b18b-687fc3b12210" />
+<img width="1860" height="880" alt="3" src="https://github.com/user-attachments/assets/368ee4db-6ed4-49d2-bafd-0474f51a5a33" />
+<img width="1831" height="705" alt="4" src="https://github.com/user-attachments/assets/767fdbae-e924-4dc1-9414-38a2493106c0" />
 
-
-
+## 需要多股批量分析版请进另一项目https://github.com/oficcejo/tradingagents
 ## 🆕版本 v0.1.15 二开增加内容
 ### 🤖 除原版功能外，增加批量分析股票板块，可批量依次分析多个股票，大大节约精力和时间
 ### 📚 初次使用批量分析板块要求绑定机器码，高手可在程序中找到，怕麻烦的请star后把机器码发到邮箱ws3101001@126.com,第一时间回复
