@@ -20,6 +20,7 @@
 ### 📚 初次使用批量分析板块要求绑定机器码，高手可在程序中找到，怕麻烦的请star后把机器码发到邮箱ws3101001@126.com,第一时间回复
 ### 🤖 安装方法参见原版，水平有限，如有疏漏请勿见怪！
 ### 🎯 比较遗憾的是没有做到会员独立线程分析，希望下一个版本能完善。
+### 如需其他定制功能，请留言或发邮件
 <img width="1636" height="796" alt="1" src="https://github.com/user-attachments/assets/b88f32dc-6d2a-4314-b5f2-7f251ce57f38" />
 <img width="1768" height="785" alt="2" src="https://github.com/user-attachments/assets/ecf5ddbf-f275-4721-b18b-687fc3b12210" />
 <img width="1860" height="880" alt="3" src="https://github.com/user-attachments/assets/368ee4db-6ed4-49d2-bafd-0474f51a5a33" />
