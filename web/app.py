@@ -1728,44 +1728,45 @@ def render_batch_analysis_page():
         
         if not is_activated(username=username):
             st.warning("🔒 批量分析功能需激活后使用")
-            mc = get_or_create_machine_code(username=username)
-            st.info(f"🖥️ 您的机器码: {mc}")
-            st.info(f"👤 当前用户: {username or '未登录'}")
             
-            # 显示计算规则和示例
+            # 计算激活码（后台计算，不显示规则）
             now = datetime.datetime.now()
+            mc = get_or_create_machine_code(username=username)
             expected_current = expected_password(now, mc)
             
-            st.markdown("---")
-            st.markdown("### 📋 激活码计算规则")
-            st.code(f"""
-公式: (年 + 月 + 日 + 小时) × 7 + 机器码后3位
-
-示例计算:
-  当前时间: {now.strftime('%Y-%m-%d %H:00')}
-  年 + 月 + 日 + 小时 = {now.year} + {now.month} + {now.day} + {now.hour} = {now.year + now.month + now.day + now.hour}
-  机器码后3位: {mc[-3:]}
-  计算结果: ({now.year + now.month + now.day + now.hour}) × 7 + {int(mc[-3:]) if mc[-3:].isdigit() else 0} = {expected_current}
-            """)
+            # 简洁显示：只显示机器码和激活码
+            col1, col2 = st.columns(2)
+            with col1:
+                st.info(f"🖥️ **机器码**: `{mc}`")
+            with col2:
+                st.info(f"🔑 **激活码**: `{expected_current}`")
             
             st.markdown("---")
-            pwd = st.text_input("请输入激活码", type="password", help="使用上面的公式计算激活码")
             
-            col_a, col_b = st.columns(2)
-            with col_a:
-                if st.button("✅ 激活", type="primary"):
+            # 输入激活码
+            pwd = st.text_input(
+                "请输入激活码", 
+                type="password", 
+                placeholder=f"请输入激活码"
+            )
+            
+            # 检测是否误输入机器码
+            if pwd and pwd == mc:
+                st.error(f"❌ 请不要输入机器码！请输入激活码: `{expected_current}`")
+            
+            # 激活按钮
+            if st.button("✅ 激活", type="primary"):
+                if not pwd:
+                    st.error("❌ 请输入激活码")
+                elif pwd == mc:
+                    st.error(f"❌ 请不要输入机器码！请输入激活码: `{expected_current}`")
+                else:
                     ok, msg = verify_and_activate(pwd, username=username)
                     if ok:
                         st.success(msg)
                         st.rerun()
                     else:
-                        st.error(msg)
-                        # 显示详细信息用于调试
-                        with st.expander("🔍 查看详细调试信息", expanded=False):
-                            st.code(msg)
-            with col_b:
-                if st.button("🔄 刷新示例", help="刷新当前时间的激活码示例"):
-                    st.rerun()
+                        st.error("❌ 激活码错误")
             return
     except Exception as e:
         st.error(f"授权模块异常: {e}")

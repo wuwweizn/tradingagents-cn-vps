@@ -113,15 +113,7 @@ def verify_and_activate(input_password: str, username: Optional[str] = None) -> 
             _save_license(data, username)
             return True, '激活成功'
         else:
-            # 提供详细的调试信息
-            debug_info = (
-                f"当前时间: {now.strftime('%Y-%m-%d %H:%M:%S')}, "
-                f"机器码: {code}, "
-                f"期望激活码(当前小时): {exp}, "
-                f"期望激活码(上一小时): {exp_prev}, "
-                f"您输入的: {input_pwd}"
-            )
-            return False, f'激活码错误。\n调试信息: {debug_info}'
+            return False, '激活码错误'
     except Exception as e:
         return False, f'激活异常: {e}'
 
