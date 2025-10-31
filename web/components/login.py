@@ -6,6 +6,7 @@
 import streamlit as st
 import time
 import sys
+import json
 from pathlib import Path
 import base64
 
@@ -282,28 +283,41 @@ def render_login_form():
                     # 生成微信授权URL
                     wechat_auth_url = wechat_auth.get_authorize_url()
                     
-                    # 使用HTML和JavaScript实现跳转
+                    # 使用Streamlit components避免Markdown解析问题
+                    # 使用JavaScript直接跳转，避免URL在Markdown中被误解析
                     wechat_button_html = f"""
                     <div style="text-align: center; margin-top: 1rem;">
-                        <a href="{wechat_auth_url}" style="
+                        <button id="wechat-login-btn" style="
                             display: inline-block;
                             width: 100%;
                             padding: 12px 24px;
                             background: #07C160;
                             color: white;
-                            text-decoration: none;
+                            border: none;
                             border-radius: 8px;
                             font-weight: 500;
+                            font-size: 16px;
+                            cursor: pointer;
                             transition: background 0.3s;
-                            text-align: center;
                             box-shadow: 0 2px 8px rgba(7, 193, 96, 0.3);
                         " onmouseover="this.style.background='#06AD56'" onmouseout="this.style.background='#07C160'">
                             <span style="font-size: 1.2rem;">💬</span> 微信一键登录
-                        </a>
+                        </button>
+                        <p style="text-align: center; color: #718096; font-size: 0.8rem; margin-top: 0.5rem;">使用微信账号快速登录</p>
+                        <script>
+                        (function() {{
+                            var btn = document.getElementById('wechat-login-btn');
+                            var url = {json.dumps(wechat_auth_url)};
+                            if (btn && url) {{
+                                btn.addEventListener('click', function() {{
+                                    window.location.href = url;
+                                }});
+                            }}
+                        }})();
+                        </script>
                     </div>
                     """
-                    st.markdown(wechat_button_html, unsafe_allow_html=True)
-                    st.markdown("<p style='text-align: center; color: #718096; font-size: 0.8rem; margin-top: 0.5rem;'>使用微信账号快速登录</p>", unsafe_allow_html=True)
+                    st.components.v1.html(wechat_button_html, height=120)
                 else:
                     st.info("💡 微信登录功能未配置，请联系管理员设置")
             except ImportError:
