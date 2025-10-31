@@ -169,10 +169,20 @@ def get_persistent_analysis_id() -> Optional[str]:
                 st.session_state.last_market_type = session_data.get('market_type', '')
                 return analysis_id
         
-        # 3. 最后从Redis/文件恢复最新分析
+        # 3. 最后从Redis/文件恢复最新分析（只恢复当前用户的分析）
+        try:
+            from .auth_manager import auth_manager
+            current_user = auth_manager.get_current_user()
+            username = current_user.get("username") if current_user else None
+        except Exception:
+            username = None
+        
         from .async_progress_tracker import get_latest_analysis_id
-        latest_id = get_latest_analysis_id()
+        latest_id = get_latest_analysis_id(username=username) if username else None
         if latest_id:
+            # 验证分析ID是否属于当前用户
+            if username and not latest_id.startswith(f"analysis_{username}_"):
+                return None  # 不属于当前用户，不恢复
             st.session_state.current_analysis_id = latest_id
             return latest_id
         

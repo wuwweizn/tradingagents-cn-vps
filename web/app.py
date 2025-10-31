@@ -338,35 +338,44 @@ def initialize_session_state():
     if 'form_config' not in st.session_state:
         st.session_state.form_config = None
 
-    # 尝试从最新完成的分析中恢复结果
+    # 尝试从最新完成的分析中恢复结果（只恢复当前用户的分析）
     if not st.session_state.analysis_results:
         try:
             from utils.async_progress_tracker import get_latest_analysis_id, get_progress_by_id
             from utils.analysis_runner import format_analysis_results
+            
+            # 获取当前用户名
+            current_user = auth_manager.get_current_user()
+            username = current_user.get("username") if current_user else None
 
-            latest_id = get_latest_analysis_id()
+            # 只获取当前用户的最新分析
+            latest_id = get_latest_analysis_id(username=username) if username else None
             if latest_id:
-                progress_data = get_progress_by_id(latest_id)
-                if (progress_data and
-                    progress_data.get('status') == 'completed' and
-                    'raw_results' in progress_data):
+                # 验证分析ID是否属于当前用户
+                if username and not latest_id.startswith(f"analysis_{username}_"):
+                    logger.warning(f"⚠️ [结果恢复] 分析ID {latest_id} 不属于用户 {username}，跳过恢复")
+                else:
+                    progress_data = get_progress_by_id(latest_id)
+                    if (progress_data and
+                        progress_data.get('status') == 'completed' and
+                        'raw_results' in progress_data):
 
-                    # 恢复分析结果
-                    raw_results = progress_data['raw_results']
-                    formatted_results = format_analysis_results(raw_results)
+                        # 恢复分析结果
+                        raw_results = progress_data['raw_results']
+                        formatted_results = format_analysis_results(raw_results)
 
-                    if formatted_results:
-                        st.session_state.analysis_results = formatted_results
-                        st.session_state.current_analysis_id = latest_id
-                        # 检查分析状态
-                        analysis_status = progress_data.get('status', 'completed')
-                        st.session_state.analysis_running = (analysis_status == 'running')
-                        # 恢复股票信息
-                        if 'stock_symbol' in raw_results:
-                            st.session_state.last_stock_symbol = raw_results.get('stock_symbol', '')
-                        if 'market_type' in raw_results:
-                            st.session_state.last_market_type = raw_results.get('market_type', '')
-                        logger.info(f"📊 [结果恢复] 从分析 {latest_id} 恢复结果，状态: {analysis_status}")
+                        if formatted_results:
+                            st.session_state.analysis_results = formatted_results
+                            st.session_state.current_analysis_id = latest_id
+                            # 检查分析状态
+                            analysis_status = progress_data.get('status', 'completed')
+                            st.session_state.analysis_running = (analysis_status == 'running')
+                            # 恢复股票信息
+                            if 'stock_symbol' in raw_results:
+                                st.session_state.last_stock_symbol = raw_results.get('stock_symbol', '')
+                            if 'market_type' in raw_results:
+                                st.session_state.last_market_type = raw_results.get('market_type', '')
+                            logger.info(f"📊 [结果恢复] 从分析 {latest_id} 恢复结果，状态: {analysis_status} (用户: {username})")
 
         except Exception as e:
             logger.warning(f"⚠️ [结果恢复] 恢复失败: {e}")
@@ -375,26 +384,43 @@ def initialize_session_state():
     try:
         persistent_analysis_id = get_persistent_analysis_id()
         if persistent_analysis_id:
-            # 使用线程检测来检查分析状态
-            from utils.thread_tracker import check_analysis_status
-            actual_status = check_analysis_status(persistent_analysis_id)
+            # 验证分析ID是否属于当前用户
+            current_user = auth_manager.get_current_user()
+            username = current_user.get("username") if current_user else None
+            
+            if username:
+                if not persistent_analysis_id.startswith(f"analysis_{username}_"):
+                    logger.warning(f"⚠️ [状态恢复] 分析ID {persistent_analysis_id} 不属于用户 {username}，清理状态")
+                    st.session_state.analysis_running = False
+                    st.session_state.current_analysis_id = None
+                    st.session_state.analysis_results = None
+                else:
+                    # 使用线程检测来检查分析状态
+                    from utils.thread_tracker import check_analysis_status
+                    actual_status = check_analysis_status(persistent_analysis_id)
 
-            # 只在状态变化时记录日志，避免重复
-            current_session_status = st.session_state.get('last_logged_status')
-            if current_session_status != actual_status:
-                logger.info(f"📊 [状态检查] 分析 {persistent_analysis_id} 实际状态: {actual_status}")
-                st.session_state.last_logged_status = actual_status
+                    # 只在状态变化时记录日志，避免重复
+                    current_session_status = st.session_state.get('last_logged_status')
+                    if current_session_status != actual_status:
+                        logger.info(f"📊 [状态检查] 分析 {persistent_analysis_id} 实际状态: {actual_status} (用户: {username})")
+                        st.session_state.last_logged_status = actual_status
 
-            if actual_status == 'running':
-                st.session_state.analysis_running = True
-                st.session_state.current_analysis_id = persistent_analysis_id
-            elif actual_status in ['completed', 'failed']:
-                st.session_state.analysis_running = False
-                st.session_state.current_analysis_id = persistent_analysis_id
-            else:  # not_found
-                logger.warning(f"📊 [状态检查] 分析 {persistent_analysis_id} 未找到，清理状态")
+                    if actual_status == 'running':
+                        st.session_state.analysis_running = True
+                        st.session_state.current_analysis_id = persistent_analysis_id
+                    elif actual_status in ['completed', 'failed']:
+                        st.session_state.analysis_running = False
+                        st.session_state.current_analysis_id = persistent_analysis_id
+                    else:  # not_found
+                        logger.warning(f"📊 [状态检查] 分析 {persistent_analysis_id} 未找到，清理状态")
+                        st.session_state.analysis_running = False
+                        st.session_state.current_analysis_id = None
+            else:
+                # 如果无法获取用户名，也清理状态（安全措施）
+                logger.warning(f"⚠️ [状态恢复] 无法获取用户名，清理分析状态")
                 st.session_state.analysis_running = False
                 st.session_state.current_analysis_id = None
+                st.session_state.analysis_results = None
     except Exception as e:
         # 如果恢复失败，保持默认值
         logger.warning(f"⚠️ [状态恢复] 恢复分析状态失败: {e}")
@@ -1203,9 +1229,11 @@ def main():
                     st.session_state.show_guide_preference = False
                     logger.info("📖 [界面] 开始分析，自动隐藏使用指南")
 
-                # 生成分析ID
+                # 生成分析ID（包含用户名以确保用户隔离）
                 import uuid
-                analysis_id = f"analysis_{uuid.uuid4().hex[:8]}_{datetime.datetime.now().strftime('%Y%m%d_%H%M%S')}"
+                current_user = auth_manager.get_current_user()
+                username = current_user.get("username", "unknown") if current_user else "unknown"
+                analysis_id = f"analysis_{username}_{uuid.uuid4().hex[:8]}_{datetime.datetime.now().strftime('%Y%m%d_%H%M%S')}"
 
                 # 保存分析ID和表单配置到session state和cookie
                 form_config = st.session_state.get('form_config', {})

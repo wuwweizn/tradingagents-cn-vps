@@ -664,8 +664,16 @@ def format_time(seconds: float) -> str:
         return f"{hours:.1f}小时"
 
 
-def get_latest_analysis_id() -> Optional[str]:
-    """获取最新的分析ID"""
+def get_latest_analysis_id(username: Optional[str] = None) -> Optional[str]:
+    """
+    获取最新的分析ID
+    
+    Args:
+        username: 用户名，如果提供则只返回该用户的分析ID；如果为None则返回全局最新的（兼容旧代码）
+    
+    Returns:
+        最新的分析ID，如果没有找到则返回None
+    """
     try:
         # 检查REDIS_ENABLED环境变量
         redis_enabled = os.getenv('REDIS_ENABLED', 'false').lower() == 'true'
@@ -703,7 +711,7 @@ def get_latest_analysis_id() -> Optional[str]:
                 if not keys:
                     return None
 
-                # 获取每个键的数据，找到最新的
+                # 获取每个键的数据，找到最新的（如果指定了用户名，只查找该用户的分析）
                 latest_time = 0
                 latest_id = None
 
@@ -712,16 +720,24 @@ def get_latest_analysis_id() -> Optional[str]:
                         data = redis_client.get(key)
                         if data:
                             progress_data = json.loads(data)
+                            # 从键名中提取analysis_id (去掉"progress:"前缀)
+                            analysis_id = key.replace('progress:', '')
+                            
+                            # 如果指定了用户名，检查分析ID是否属于该用户
+                            if username:
+                                # 分析ID格式：analysis_{username}_{uuid}_{timestamp}
+                                if not analysis_id.startswith(f"analysis_{username}_"):
+                                    continue  # 跳过不属于当前用户的分析
+                            
                             last_update = progress_data.get('last_update', 0)
                             if last_update > latest_time:
                                 latest_time = last_update
-                                # 从键名中提取analysis_id (去掉"progress:"前缀)
-                                latest_id = key.replace('progress:', '')
+                                latest_id = analysis_id
                     except Exception:
                         continue
 
                 if latest_id:
-                    logger.info(f"📊 [恢复分析] 找到最新分析ID: {latest_id}")
+                    logger.info(f"📊 [恢复分析] 找到最新分析ID: {latest_id} (用户: {username or '全部'})")
                     return latest_id
 
             except Exception as e:
@@ -732,14 +748,22 @@ def get_latest_analysis_id() -> Optional[str]:
         if data_dir.exists():
             progress_files = list(data_dir.glob("progress_*.json"))
             if progress_files:
-                # 按修改时间排序，获取最新的
-                latest_file = max(progress_files, key=lambda f: f.stat().st_mtime)
-                # 从文件名提取analysis_id
-                filename = latest_file.name
-                if filename.startswith("progress_") and filename.endswith(".json"):
-                    analysis_id = filename[9:-5]  # 去掉前缀和后缀
-                    logger.debug(f"📊 [恢复分析] 从文件找到最新分析ID: {analysis_id}")
-                    return analysis_id
+                # 过滤出属于指定用户的分析（如果指定了用户名）
+                if username:
+                    # 分析ID格式：analysis_{username}_{uuid}_{timestamp}
+                    user_prefix = f"analysis_{username}_"
+                    progress_files = [f for f in progress_files 
+                                     if f.name.startswith(f"progress_{user_prefix}")]
+                
+                if progress_files:
+                    # 按修改时间排序，获取最新的
+                    latest_file = max(progress_files, key=lambda f: f.stat().st_mtime)
+                    # 从文件名提取analysis_id
+                    filename = latest_file.name
+                    if filename.startswith("progress_") and filename.endswith(".json"):
+                        analysis_id = filename[9:-5]  # 去掉前缀和后缀
+                        logger.debug(f"📊 [恢复分析] 从文件找到最新分析ID: {analysis_id} (用户: {username or '全部'})")
+                        return analysis_id
 
         return None
     except Exception as e:
