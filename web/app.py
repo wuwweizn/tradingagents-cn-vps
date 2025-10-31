@@ -395,26 +395,26 @@ def initialize_session_state():
                     st.session_state.current_analysis_id = None
                     st.session_state.analysis_results = None
                 else:
-            # 使用线程检测来检查分析状态
-            from utils.thread_tracker import check_analysis_status
-            actual_status = check_analysis_status(persistent_analysis_id)
+                    # 使用线程检测来检查分析状态
+                    from utils.thread_tracker import check_analysis_status
+                    actual_status = check_analysis_status(persistent_analysis_id)
 
-            # 只在状态变化时记录日志，避免重复
-            current_session_status = st.session_state.get('last_logged_status')
-            if current_session_status != actual_status:
+                    # 只在状态变化时记录日志，避免重复
+                    current_session_status = st.session_state.get('last_logged_status')
+                    if current_session_status != actual_status:
                         logger.info(f"📊 [状态检查] 分析 {persistent_analysis_id} 实际状态: {actual_status} (用户: {username})")
-                st.session_state.last_logged_status = actual_status
+                        st.session_state.last_logged_status = actual_status
 
-            if actual_status == 'running':
-                st.session_state.analysis_running = True
-                st.session_state.current_analysis_id = persistent_analysis_id
-            elif actual_status in ['completed', 'failed']:
-                st.session_state.analysis_running = False
-                st.session_state.current_analysis_id = persistent_analysis_id
-            else:  # not_found
-                logger.warning(f"📊 [状态检查] 分析 {persistent_analysis_id} 未找到，清理状态")
-                st.session_state.analysis_running = False
-                st.session_state.current_analysis_id = None
+                    if actual_status == 'running':
+                        st.session_state.analysis_running = True
+                        st.session_state.current_analysis_id = persistent_analysis_id
+                    elif actual_status in ['completed', 'failed']:
+                        st.session_state.analysis_running = False
+                        st.session_state.current_analysis_id = persistent_analysis_id
+                    else:  # not_found
+                        logger.warning(f"📊 [状态检查] 分析 {persistent_analysis_id} 未找到，清理状态")
+                        st.session_state.analysis_running = False
+                        st.session_state.current_analysis_id = None
             else:
                 # 如果无法获取用户名，也清理状态（安全措施）
                 logger.warning(f"⚠️ [状态恢复] 无法获取用户名，清理分析状态")
@@ -1677,7 +1677,7 @@ def render_batch_analysis_page():
     # 权限检查（双重检查，确保安全）
     if not auth_manager.check_permission("batch_analysis"):
         st.error("❌ 您没有批量分析权限，请联系管理员分配该权限")
-        st.info("💡 批量分析功能需要管理员在"会员管理"页面为您分配 `batch_analysis` 权限")
+        st.info("💡 批量分析功能需要管理员在「会员管理」页面为您分配 `batch_analysis` 权限")
         return
     
     # 页面标题
