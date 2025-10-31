@@ -343,7 +343,7 @@ def initialize_session_state():
         try:
             from utils.async_progress_tracker import get_latest_analysis_id, get_progress_by_id
             from utils.analysis_runner import format_analysis_results
-            
+
             # 获取当前用户名
             current_user = auth_manager.get_current_user()
             username = current_user.get("username") if current_user else None
@@ -356,25 +356,25 @@ def initialize_session_state():
                     logger.warning(f"⚠️ [结果恢复] 分析ID {latest_id} 不属于用户 {username}，跳过恢复")
                 else:
                     progress_data = get_progress_by_id(latest_id)
-                    if (progress_data and
-                        progress_data.get('status') == 'completed' and
-                        'raw_results' in progress_data):
+                if (progress_data and
+                    progress_data.get('status') == 'completed' and
+                    'raw_results' in progress_data):
 
-                        # 恢复分析结果
-                        raw_results = progress_data['raw_results']
-                        formatted_results = format_analysis_results(raw_results)
+                    # 恢复分析结果
+                    raw_results = progress_data['raw_results']
+                    formatted_results = format_analysis_results(raw_results)
 
-                        if formatted_results:
-                            st.session_state.analysis_results = formatted_results
-                            st.session_state.current_analysis_id = latest_id
-                            # 检查分析状态
-                            analysis_status = progress_data.get('status', 'completed')
-                            st.session_state.analysis_running = (analysis_status == 'running')
-                            # 恢复股票信息
-                            if 'stock_symbol' in raw_results:
-                                st.session_state.last_stock_symbol = raw_results.get('stock_symbol', '')
-                            if 'market_type' in raw_results:
-                                st.session_state.last_market_type = raw_results.get('market_type', '')
+                    if formatted_results:
+                        st.session_state.analysis_results = formatted_results
+                        st.session_state.current_analysis_id = latest_id
+                        # 检查分析状态
+                        analysis_status = progress_data.get('status', 'completed')
+                        st.session_state.analysis_running = (analysis_status == 'running')
+                        # 恢复股票信息
+                        if 'stock_symbol' in raw_results:
+                            st.session_state.last_stock_symbol = raw_results.get('stock_symbol', '')
+                        if 'market_type' in raw_results:
+                            st.session_state.last_market_type = raw_results.get('market_type', '')
                             logger.info(f"📊 [结果恢复] 从分析 {latest_id} 恢复结果，状态: {analysis_status} (用户: {username})")
 
         except Exception as e:
@@ -625,45 +625,6 @@ def main():
 
     # 检查前端缓存恢复
     check_frontend_auth_cache()
-    
-    # 处理微信登录回调
-    query_params = st.query_params
-    if "code" in query_params and "state" in query_params:
-        # 微信登录回调
-        code = query_params.get("code")
-        state = query_params.get("state")
-        
-        try:
-            try:
-                from utils.wechat_auth import wechat_auth
-            except ImportError:
-                from web.utils.wechat_auth import wechat_auth
-            
-            # auth_manager已在文件顶部导入
-            
-            # 完成微信登录流程
-            success, wechat_info = wechat_auth.complete_login(code)
-            
-            if success and wechat_info:
-                # 使用AuthManager登录微信用户
-                login_success, user_info, message = auth_manager.login_wechat_user(wechat_info)
-                
-                if login_success:
-                    st.success(f"✅ {message}")
-                    # 清除查询参数，避免重复处理
-                    st.query_params.clear()
-                    time.sleep(1)
-                    st.rerun()
-                else:
-                    st.error(f"❌ 登录失败: {message}")
-            else:
-                st.error("❌ 微信登录失败，请重试")
-                
-        except ImportError:
-            st.error("❌ 微信登录模块未正确安装")
-        except Exception as e:
-            st.error(f"❌ 微信登录处理失败: {str(e)}")
-            logger.error(f"微信登录回调处理异常: {e}", exc_info=True)
 
     # 检查用户认证状态
     if not auth_manager.is_authenticated():
@@ -1106,11 +1067,11 @@ def main():
             ### 🔑 必需的API密钥
             
             1. **阿里百炼API密钥** (DASHSCOPE_API_KEY)
-               - 获取地址: https://dashscope.aliyun.com/
+               - 获取地址: <a href="https://dashscope.aliyun.com/" target="_blank">https://dashscope.aliyun.com/</a>
                - 用途: AI模型推理
             
             2. **金融数据API密钥** (FINNHUB_API_KEY)  
-               - 获取地址: https://finnhub.io/
+               - 获取地址: <a href="https://finnhub.io/" target="_blank">https://finnhub.io/</a>
                - 用途: 获取股票数据
             
             ### ⚙️ 配置方法
@@ -1124,7 +1085,7 @@ def main():
             DASHSCOPE_API_KEY=sk-your-dashscope-key
             FINNHUB_API_KEY=your-finnhub-key
             ```
-            """)
+            """, unsafe_allow_html=True)
         
         # 显示当前API密钥状态
         st.subheader("🔍 当前API密钥状态")
@@ -1721,11 +1682,11 @@ def render_batch_analysis_page():
             ### 🔑 必需的API密钥
             
             1. **阿里百炼API密钥** (DASHSCOPE_API_KEY)
-               - 获取地址: https://dashscope.aliyun.com/
+               - 获取地址: <a href="https://dashscope.aliyun.com/" target="_blank">https://dashscope.aliyun.com/</a>
                - 用途: AI模型推理
             
             2. **金融数据API密钥** (FINNHUB_API_KEY)  
-               - 获取地址: https://finnhub.io/
+               - 获取地址: <a href="https://finnhub.io/" target="_blank">https://finnhub.io/</a>
                - 用途: 获取股票数据
             
             ### ⚙️ 配置方法
@@ -1739,7 +1700,7 @@ def render_batch_analysis_page():
             DASHSCOPE_API_KEY=sk-your-dashscope-key
             FINNHUB_API_KEY=your-finnhub-key
             ```
-            """)
+            """, unsafe_allow_html=True)
         
         # 显示当前API密钥状态
         st.subheader("🔍 当前API密钥状态")
