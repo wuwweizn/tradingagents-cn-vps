@@ -648,17 +648,31 @@ def main():
             return
 
     # 全局侧边栏CSS样式 - 确保所有页面一致
+    # 清除登录页面的样式，确保侧边栏正常显示
     st.markdown("""
     <style>
-    /* 统一侧边栏宽度为320px */
+    /* 清除登录页面的背景样式，恢复默认 */
+    .stApp {
+        background: white !important;
+    }
+    
+    /* 确保侧边栏始终可见且正常显示 */
     section[data-testid="stSidebar"] {
+        display: block !important;
+        visibility: visible !important;
+        opacity: 1 !important;
         width: 320px !important;
         min-width: 320px !important;
         max-width: 320px !important;
+        position: relative !important;
+        z-index: 100 !important;
     }
-
-    /* 侧边栏内容容器 */
+    
+    /* 确保侧边栏内容容器可见 */
     section[data-testid="stSidebar"] > div {
+        display: block !important;
+        visibility: visible !important;
+        opacity: 1 !important;
         width: 320px !important;
         min-width: 320px !important;
         max-width: 320px !important;
