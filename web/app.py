@@ -625,6 +625,45 @@ def main():
 
     # 检查前端缓存恢复
     check_frontend_auth_cache()
+    
+    # 处理微信登录回调
+    query_params = st.query_params
+    if "code" in query_params and "state" in query_params:
+        # 微信登录回调
+        code = query_params.get("code")
+        state = query_params.get("state")
+        
+        try:
+            try:
+                from utils.wechat_auth import wechat_auth
+            except ImportError:
+                from web.utils.wechat_auth import wechat_auth
+            
+            # auth_manager已在文件顶部导入
+            
+            # 完成微信登录流程
+            success, wechat_info = wechat_auth.complete_login(code)
+            
+            if success and wechat_info:
+                # 使用AuthManager登录微信用户
+                login_success, user_info, message = auth_manager.login_wechat_user(wechat_info)
+                
+                if login_success:
+                    st.success(f"✅ {message}")
+                    # 清除查询参数，避免重复处理
+                    st.query_params.clear()
+                    time.sleep(1)
+                    st.rerun()
+                else:
+                    st.error(f"❌ 登录失败: {message}")
+            else:
+                st.error("❌ 微信登录失败，请重试")
+                
+        except ImportError:
+            st.error("❌ 微信登录模块未正确安装")
+        except Exception as e:
+            st.error(f"❌ 微信登录处理失败: {str(e)}")
+            logger.error(f"微信登录回调处理异常: {e}", exc_info=True)
 
     # 检查用户认证状态
     if not auth_manager.is_authenticated():

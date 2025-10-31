@@ -261,6 +261,55 @@ def render_login_form():
                         st.error("❌ 用户名或密码错误，请重试")
                 else:
                     st.warning("⚠️ 请输入完整的登录信息")
+            
+            # 微信登录按钮
+            st.markdown("<br>", unsafe_allow_html=True)
+            st.markdown("---")
+            st.markdown("<p style='text-align: center; color: #718096; font-size: 0.9rem;'>或</p>", unsafe_allow_html=True)
+            
+            # 尝试导入微信认证模块
+            try:
+                # 尝试多种导入路径
+                try:
+                    from utils.wechat_auth import wechat_auth
+                except ImportError:
+                    try:
+                        from ..utils.wechat_auth import wechat_auth
+                    except ImportError:
+                        from web.utils.wechat_auth import wechat_auth
+                
+                if wechat_auth.is_configured():
+                    # 生成微信授权URL
+                    wechat_auth_url = wechat_auth.get_authorize_url()
+                    
+                    # 使用HTML和JavaScript实现跳转
+                    wechat_button_html = f"""
+                    <div style="text-align: center; margin-top: 1rem;">
+                        <a href="{wechat_auth_url}" style="
+                            display: inline-block;
+                            width: 100%;
+                            padding: 12px 24px;
+                            background: #07C160;
+                            color: white;
+                            text-decoration: none;
+                            border-radius: 8px;
+                            font-weight: 500;
+                            transition: background 0.3s;
+                            text-align: center;
+                            box-shadow: 0 2px 8px rgba(7, 193, 96, 0.3);
+                        " onmouseover="this.style.background='#06AD56'" onmouseout="this.style.background='#07C160'">
+                            <span style="font-size: 1.2rem;">💬</span> 微信一键登录
+                        </a>
+                    </div>
+                    """
+                    st.markdown(wechat_button_html, unsafe_allow_html=True)
+                    st.markdown("<p style='text-align: center; color: #718096; font-size: 0.8rem; margin-top: 0.5rem;'>使用微信账号快速登录</p>", unsafe_allow_html=True)
+                else:
+                    st.info("💡 微信登录功能未配置，请联系管理员设置")
+            except ImportError:
+                st.info("💡 微信登录模块未安装")
+            except Exception as e:
+                st.warning(f"⚠️ 微信登录暂不可用: {str(e)}")
         
         st.markdown('</div>', unsafe_allow_html=True)
     

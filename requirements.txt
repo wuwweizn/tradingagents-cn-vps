@@ -23,6 +23,7 @@ finnhub-python
 parsel
 requests
 tqdm
+# 微信登录功能已集成在wechat_auth.py中，使用requests库即可
 pytz
 redis
 chainlit
