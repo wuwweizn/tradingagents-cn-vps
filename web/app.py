@@ -953,8 +953,8 @@ def main():
 
     # 根据选择的页面渲染不同内容
     if page == "📈 批量分析":
-        # 检查分析权限
-        if not require_permission("analysis"):
+        # 检查批量分析权限
+        if not require_permission("batch_analysis"):
             return
         try:
             from components.batch_analysis_form import render_batch_analysis_form
@@ -1659,6 +1659,12 @@ def main():
 
 def render_batch_analysis_page():
     """渲染批量分析页面"""
+    
+    # 权限检查（双重检查，确保安全）
+    if not auth_manager.check_permission("batch_analysis"):
+        st.error("❌ 您没有批量分析权限")
+        st.info("💡 请联系管理员为您分配 'batch_analysis' 权限")
+        return
     
     # 页面标题
     st.header("📈 批量股票分析")

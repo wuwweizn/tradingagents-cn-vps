@@ -104,7 +104,7 @@ def create_user(username: str, password: str, role: str = "user", permissions: l
         return False
     
     if permissions is None:
-        permissions = ["analysis"] if role == "user" else ["analysis", "config", "admin"]
+        permissions = ["analysis"] if role == "user" else ["analysis", "batch_analysis", "config", "admin"]
     
     # 创建新用户
     users[username] = {

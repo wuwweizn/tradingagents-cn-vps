@@ -65,7 +65,7 @@ def _create_user_form(users: dict) -> None:
 			role = st.selectbox("角色", ["user", "admin"], index=0)
 		with col2:
 			password = st.text_input("初始密码", type="password", placeholder="建议强密码")
-			perms = st.multiselect("权限", ["analysis", "config", "admin"], default=["analysis"]) 
+			perms = st.multiselect("权限", ["analysis", "batch_analysis", "config", "admin"], default=["analysis"]) 
 			points = st.number_input("初始点数", min_value=0, value=10, step=1)
 		submitted = st.form_submit_button("创建")
 		if submitted:
@@ -106,7 +106,7 @@ def _update_user_form(users: dict) -> None:
 			new_role = st.selectbox("角色", ["user", "admin"], index=0 if info.get("role")!="admin" else 1)
 			new_password = st.text_input("重置密码(留空则不改)", type="password")
 		with col2:
-			new_perms = st.multiselect("权限", ["analysis", "config", "admin"], default=info.get("permissions", []))
+			new_perms = st.multiselect("权限", ["analysis", "batch_analysis", "config", "admin"], default=info.get("permissions", []))
 		col3, col4 = st.columns(2)
 		with col3:
 			new_points = st.number_input("点数", min_value=0, value=int(info.get("points", 0)), step=1)
