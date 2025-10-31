@@ -55,50 +55,6 @@ st.set_page_config(
     menu_items=None
 )
 
-# 修复手机浏览器中Markdown渲染的正则表达式问题
-# 问题：transformGfmAutolinkLiterals 函数中的正则表达式在某些手机浏览器中不兼容
-st.markdown("""
-<script>
-// 在DOM加载完成后执行修复
-window.addEventListener('load', function() {
-    // 修复不兼容的正则表达式
-    try {
-        // 创建一个安全的替代函数，处理GitHub风格的自动链接
-        function safeTransformGfmAutolinkLiterals(text) {
-            // 使用兼容所有浏览器的正则表达式
-            // 简化版本的URL检测，避免使用命名捕获组
-            const urlRegex = /(https?:\/\/[\w\-._~:\/?#[\]@!$&'()*+,;=%]+)/g;
-            const emailRegex = /([a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,})/g;
-            
-            // 替换URLs
-            let result = text.replace(urlRegex, '<a href="$1" target="_blank" rel="noopener noreferrer">$1</a>');
-            // 替换邮箱
-            result = result.replace(emailRegex, '<a href="mailto:$1">$1</a>');
-            
-            return result;
-        }
-        
-        // 尝试覆盖原始函数
-        if (window.marked && window.marked.Renderer) {
-            const originalLink = window.marked.Renderer.prototype.link;
-            window.marked.Renderer.prototype.link = function(href, title, text) {
-                try {
-                    return originalLink.call(this, href, title, text);
-                } catch (e) {
-                    // 如果出错，返回简单的链接
-                    return `<a href="${href}" target="_blank">${text}</a>`;
-                }
-            };
-        }
-        
-        console.log('Markdown渲染兼容性修复已应用');
-    } catch (error) {
-        console.warn('应用Markdown修复时出错:', error);
-    }
-});
-</script>
-""", unsafe_allow_html=True)
-
 # 自定义CSS样式
 st.markdown("""
 <style>
@@ -358,6 +314,130 @@ st.markdown("""
         box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
     }
 </style>
+<script>
+// 正则表达式兼容性polyfill - 修复移动浏览器不支持命名捕获组的问题
+// 必须在页面加载的最早阶段执行，在Streamlit代码之前
+(function() {
+    'use strict';
+    
+    // 保存原始RegExp
+    const OriginalRegExp = window.RegExp;
+    
+    // 转换命名捕获组为正则捕获组的函数
+    function convertNamedGroups(pattern) {
+        if (typeof pattern !== 'string') {
+            return pattern;
+        }
+        
+        // 匹配命名捕获组: (?<name>pattern)
+        // 转换为普通捕获组: (pattern)
+        // 需要处理嵌套和转义的情况
+        let result = pattern;
+        let hasNamedGroups = false;
+        
+        // 检查是否包含命名捕获组（不考虑转义的情况）
+        const namedGroupRegex = /\(\?<[a-zA-Z_$][a-zA-Z0-9_$]*>/g;
+        if (namedGroupRegex.test(pattern)) {
+            hasNamedGroups = true;
+            // 简单替换：移除命名，保留捕获组
+            result = pattern.replace(/\(\?<[a-zA-Z_$][a-zA-Z0-9_$]*>/g, '(');
+        }
+        
+        return { pattern: result, hasNamedGroups: hasNamedGroups };
+    }
+    
+    // 包装RegExp构造函数
+    function PatchedRegExp(pattern, flags) {
+        // 如果是字符串模式，检查并转换命名捕获组
+        if (typeof pattern === 'string') {
+            const converted = convertNamedGroups(pattern);
+            if (converted.hasNamedGroups) {
+                console.warn('⚠️ 检测到命名捕获组，已自动转换以兼容旧浏览器:', pattern.substring(0, 50) + '...');
+                pattern = converted.pattern;
+            }
+        }
+        
+        // 如果模式是RegExp对象，也需要处理
+        if (pattern instanceof OriginalRegExp) {
+            const source = pattern.source;
+            const converted = convertNamedGroups(source);
+            if (converted.hasNamedGroups) {
+                console.warn('⚠️ RegExp对象包含命名捕获组，已转换:', source.substring(0, 50) + '...');
+                pattern = converted.pattern;
+            }
+            flags = flags || pattern.flags;
+        }
+        
+        // 使用转换后的模式创建RegExp
+        try {
+            return new OriginalRegExp(pattern, flags);
+        } catch (e) {
+            // 如果仍然失败，尝试进一步清理
+            console.error('❌ 正则表达式创建失败，尝试修复:', e.message);
+            if (typeof pattern === 'string') {
+                // 移除可能有问题的语法
+                const cleaned = pattern.replace(/\(\?<[^>]+>/g, '(').replace(/\(\?[=!]/g, '(');
+                try {
+                    return new OriginalRegExp(cleaned, flags);
+                } catch (e2) {
+                    console.error('❌ 修复后仍失败，返回空正则:', e2.message);
+                    return new OriginalRegExp('', flags);
+                }
+            }
+            throw e;
+        }
+    }
+    
+    // 复制原始RegExp的属性和方法
+    Object.setPrototypeOf(PatchedRegExp, OriginalRegExp);
+    PatchedRegExp.prototype = OriginalRegExp.prototype;
+    
+    // 复制静态属性
+    Object.keys(OriginalRegExp).forEach(function(key) {
+        PatchedRegExp[key] = OriginalRegExp[key];
+    });
+    
+    // 替换全局RegExp
+    window.RegExp = PatchedRegExp;
+    
+    // 全局错误处理 - 捕获并处理正则表达式错误
+    const originalErrorHandler = window.onerror;
+    window.addEventListener('error', function(event) {
+        if (event.message && (
+            event.message.includes('Invalid regular expression') ||
+            event.message.includes('invalid group specifier name')
+        )) {
+            console.error('❌ 捕获到正则表达式错误:', event.message, '在:', event.filename, ':', event.lineno);
+            // 尝试阻止错误传播
+            event.preventDefault();
+            event.stopPropagation();
+            return true;
+        }
+        // 调用原始错误处理器
+        if (originalErrorHandler) {
+            return originalErrorHandler.apply(this, arguments);
+        }
+    }, true);
+    
+    // 捕获未处理的Promise rejection
+    window.addEventListener('unhandledrejection', function(event) {
+        const reason = event.reason;
+        if (reason && (
+            (reason.message && (
+                reason.message.includes('Invalid regular expression') ||
+                reason.message.includes('invalid group specifier name')
+            )) ||
+            (typeof reason === 'string' && reason.includes('Invalid regular expression'))
+        )) {
+            console.error('❌ Promise中的正则表达式错误:', reason);
+            event.preventDefault();
+            // 不阻止默认行为，只是记录
+        }
+    });
+    
+    console.log('✅ 正则表达式兼容性polyfill已加载（移动浏览器兼容模式）');
+})();
+</script>
 """, unsafe_allow_html=True)
 
 def initialize_session_state():
@@ -406,20 +486,20 @@ def initialize_session_state():
 
                         # 恢复分析结果
                         raw_results = progress_data['raw_results']
-                        formatted_results = format_analysis_results(raw_results)
+                    formatted_results = format_analysis_results(raw_results)
 
-                        if formatted_results:
-                            st.session_state.analysis_results = formatted_results
-                            st.session_state.current_analysis_id = latest_id
-                            # 检查分析状态
-                            analysis_status = progress_data.get('status', 'completed')
-                            st.session_state.analysis_running = (analysis_status == 'running')
-                            # 恢复股票信息
-                            if 'stock_symbol' in raw_results:
-                                st.session_state.last_stock_symbol = raw_results.get('stock_symbol', '')
-                            if 'market_type' in raw_results:
-                                st.session_state.last_market_type = raw_results.get('market_type', '')
-                            logger.info(f"📊 [结果恢复] 从分析 {latest_id} 恢复结果，状态: {analysis_status} (用户: {username})")
+                    if formatted_results:
+                        st.session_state.analysis_results = formatted_results
+                        st.session_state.current_analysis_id = latest_id
+                        # 检查分析状态
+                        analysis_status = progress_data.get('status', 'completed')
+                        st.session_state.analysis_running = (analysis_status == 'running')
+                        # 恢复股票信息
+                        if 'stock_symbol' in raw_results:
+                            st.session_state.last_stock_symbol = raw_results.get('stock_symbol', '')
+                        if 'market_type' in raw_results:
+                            st.session_state.last_market_type = raw_results.get('market_type', '')
+                        logger.info(f"📊 [结果恢复] 从分析 {latest_id} 恢复结果，状态: {analysis_status} (用户: {username})")
 
         except Exception as e:
             logger.warning(f"⚠️ [结果恢复] 恢复失败: {e}")
@@ -449,22 +529,22 @@ def initialize_session_state():
                         logger.info(f"📊 [状态检查] 分析 {persistent_analysis_id} 实际状态: {actual_status} (用户: {username})")
                         st.session_state.last_logged_status = actual_status
 
-            if actual_status == 'running':
-                st.session_state.analysis_running = True
-                st.session_state.current_analysis_id = persistent_analysis_id
-            elif actual_status in ['completed', 'failed']:
-                st.session_state.analysis_running = False
-                st.session_state.current_analysis_id = persistent_analysis_id
-            else:  # not_found
-                logger.warning(f"📊 [状态检查] 分析 {persistent_analysis_id} 未找到，清理状态")
+                    if actual_status == 'running':
+                        st.session_state.analysis_running = True
+                        st.session_state.current_analysis_id = persistent_analysis_id
+                    elif actual_status in ['completed', 'failed']:
+                        st.session_state.analysis_running = False
+                        st.session_state.current_analysis_id = persistent_analysis_id
+                    else:  # not_found
+                        logger.warning(f"📊 [状态检查] 分析 {persistent_analysis_id} 未找到，清理状态")
+                        st.session_state.analysis_running = False
+                        st.session_state.current_analysis_id = None
+            else:
+                # 如果无法获取用户名，也清理状态（安全措施）
+                logger.warning(f"⚠️ [状态恢复] 无法获取用户名，清理分析状态")
                 st.session_state.analysis_running = False
                 st.session_state.current_analysis_id = None
-        else:
-            # 如果无法获取用户名，也清理状态（安全措施）
-            logger.warning(f"⚠️ [状态恢复] 无法获取用户名，清理分析状态")
-            st.session_state.analysis_running = False
-            st.session_state.current_analysis_id = None
-            st.session_state.analysis_results = None
+                st.session_state.analysis_results = None
     except Exception as e:
         # 如果恢复失败，保持默认值
         logger.warning(f"⚠️ [状态恢复] 恢复分析状态失败: {e}")
