@@ -27,9 +27,11 @@ from tradingagents.config.config_manager import (
 try:
     from web.utils.model_points_manager import model_points_manager
     from web.modules.points_package_management import render_points_package_management
+    from web.modules.payment_config import render_payment_config
 except ImportError:
     from utils.model_points_manager import model_points_manager
     from modules.points_package_management import render_points_package_management
+    from modules.payment_config import render_payment_config
 
 
 def render_config_management():
@@ -46,7 +48,7 @@ def render_config_management():
     st.sidebar.title("配置选项")
     page = st.sidebar.selectbox(
         "选择功能",
-        ["模型配置", "模型点数配置", "点数套餐管理", "定价设置", "使用统计", "系统设置"]
+        ["模型配置", "模型点数配置", "点数套餐管理", "支付配置", "定价设置", "使用统计", "系统设置"]
     )
     
     if page == "模型配置":
@@ -55,6 +57,8 @@ def render_config_management():
         render_model_points_config()
     elif page == "点数套餐管理":
         render_points_package_management()
+    elif page == "支付配置":
+        render_payment_config()
     elif page == "定价设置":
         render_pricing_config()
     elif page == "使用统计":

@@ -7,6 +7,7 @@ import streamlit as st
 import time
 from pathlib import Path
 import sys
+import time as time_module
 
 # 添加项目根目录到路径
 project_root = Path(__file__).parent.parent.parent
@@ -15,9 +16,11 @@ sys.path.insert(0, str(project_root))
 try:
     from web.utils.points_package_manager import points_package_manager
     from web.utils.auth_manager import auth_manager
+    from web.utils.payment_adapter import payment_manager
 except ImportError:
     from utils.points_package_manager import points_package_manager
     from utils.auth_manager import auth_manager
+    from utils.payment_adapter import payment_manager
 
 
 def render_points_store():
@@ -138,23 +141,42 @@ def handle_purchase(package_id: str, username: str, package: dict):
         - 金额: ¥{order['price']:.2f}
         """)
         
-        # 支付方式选择（简化版，实际应该接入真实支付）
-        payment_method = st.selectbox(
+        # 支付方式选择
+        available_methods = payment_manager.get_available_payment_methods()
+        payment_options = []
+        
+        # 添加真实支付方式
+        for method in available_methods:
+            method_name = "💰 支付宝" if method == "alipay" else "💚 微信支付"
+            payment_options.append((method_name, method))
+        
+        # 添加测试支付方式
+        payment_options.append(("模拟支付（测试用）", "mock"))
+        payment_options.append(("手动确认（管理员审核）", "manual"))
+        
+        # 构建选择框选项
+        payment_labels = [opt[0] for opt in payment_options]
+        selected_index = st.selectbox(
             "支付方式",
-            ["手动确认（管理员审核）", "模拟支付（测试用）"],
+            range(len(payment_labels)),
+            format_func=lambda x: payment_labels[x],
             key=f"payment_{package_id}"
         )
+        selected_payment = payment_options[selected_index][1]
         
         col1, col2 = st.columns(2)
         with col1:
             if st.button("✅ 确认支付", key=f"confirm_{package_id}", type="primary", use_container_width=True):
-                if payment_method == "模拟支付（测试用）":
+                if selected_payment == "mock":
                     # 模拟支付流程
                     complete_purchase(order['order_id'], username, order)
-                else:
+                elif selected_payment == "manual":
                     # 手动确认流程（需要管理员审核）
                     st.info("📝 订单已创建，等待管理员审核确认。审核通过后，点数将自动充值到您的账户。")
                     st.session_state.pop(f"show_order_confirm_{package_id}", None)
+                else:
+                    # 真实支付流程
+                    handle_real_payment(selected_payment, order, username)
         
         with col2:
             if st.button("❌ 取消", key=f"cancel_{package_id}", use_container_width=True):
@@ -182,6 +204,70 @@ def complete_purchase(order_id: str, username: str, order: dict):
             st.error("❌ 订单处理失败，请重试")
     except Exception as e:
         st.error(f"❌ 充值失败: {e}")
+
+
+def handle_real_payment(payment_method: str, order: dict, username: str):
+    """处理真实支付"""
+    try:
+        order_id = order['order_id']
+        amount = order['price']
+        subject = f"点数充值 - {order['package_name']}"
+        description = f"购买 {order['total_points']} 点（含赠送 {order['bonus']} 点）"
+        
+        # 创建支付订单
+        success, payment_info, error = payment_manager.create_payment(
+            payment_method, 
+            order_id, 
+            amount, 
+            subject, 
+            description
+        )
+        
+        if not success:
+            st.error(f"❌ 创建支付订单失败: {error}")
+            return
+        
+        # 更新订单的支付方式
+        points_package_manager.update_order_status(
+            order_id,
+            "pending",
+            payment_method=payment_method,
+            payment_info=payment_info
+        )
+        
+        # 显示支付链接或二维码
+        payment_url = payment_info.get("payment_url")
+        qr_code = payment_info.get("qr_code")
+        
+        st.success(f"✅ 支付订单已创建，请完成支付")
+        
+        if payment_url:
+            st.markdown(f"### 🔗 支付链接")
+            st.markdown(f"[点击跳转到支付页面]({payment_url})")
+            
+            # 在Streamlit中直接跳转
+            st.markdown(f"""
+            <script>
+            window.open('{payment_url}', '_blank');
+            </script>
+            """, unsafe_allow_html=True)
+        
+        if qr_code:
+            st.markdown(f"### 📱 扫码支付")
+            # 这里可以集成二维码生成库，如 qrcode
+            st.info(f"扫码支付: {qr_code}")
+        
+        st.info("""
+        💡 **支付说明**:
+        - 支付完成后，点数将自动充值到您的账户
+        - 如未及时到账，请联系管理员
+        - 您可以在"购买历史"中查看订单状态
+        """)
+        
+        st.session_state.pop(f"show_order_confirm_{order['package_id']}", None)
+        
+    except Exception as e:
+        st.error(f"❌ 支付处理失败: {e}")
 
 
 def render_order_history(username: str):
