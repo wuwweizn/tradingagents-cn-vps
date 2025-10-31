@@ -1,0 +1,77 @@
+# FastAPI 后端 Dockerfile
+FROM python:3.10-slim-bookworm
+
+# 安装uv包管理器
+RUN pip install -i https://mirrors.aliyun.com/pypi/simple uv
+
+WORKDIR /app
+
+RUN mkdir -p /app/data /app/logs /app/config
+
+ENV PYTHONUNBUFFERED=1 \
+    PYTHONDONTWRITEBYTECODE=1
+
+# 配置阿里云Debian镜像源
+RUN echo 'deb http://mirrors.aliyun.com/debian/ bookworm main' > /etc/apt/sources.list && \
+    echo 'deb-src http://mirrors.aliyun.com/debian/ bookworm main' >> /etc/apt/sources.list && \
+    echo 'deb http://mirrors.aliyun.com/debian/ bookworm-updates main' >> /etc/apt/sources.list && \
+    echo 'deb-src http://mirrors.aliyun.com/debian/ bookworm-updates main' >> /etc/apt/sources.list && \
+    echo 'deb http://mirrors.aliyun.com/debian-security bookworm-security main' >> /etc/apt/sources.list && \
+    echo 'deb-src http://mirrors.aliyun.com/debian-security bookworm-security main' >> /etc/apt/sources.list
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    build-essential \
+    curl \
+    procps \
+    && rm -rf /var/lib/apt/lists/*
+
+# 复制API依赖文件
+COPY requirements-api.txt .
+COPY requirements-lock.txt .
+
+# 多源轮询安装依赖
+RUN set -e; \
+    for src in \
+        https://pypi.tuna.tsinghua.edu.cn/simple \
+        https://mirrors.aliyun.com/pypi/simple \
+        https://pypi.doubanio.com/simple \
+        https://pypi.org/simple; do \
+      echo "Try installing from $src"; \
+      pip install --no-cache-dir -r requirements-api.txt -i $src && break; \
+      echo "Failed at $src, try next"; \
+    done
+
+# 安装项目主依赖
+RUN set -e; \
+    for src in \
+        https://pypi.tuna.tsinghua.edu.cn/simple \
+        https://mirrors.aliyun.com/pypi/simple \
+        https://pypi.doubanio.com/simple \
+        https://pypi.org/simple; do \
+      echo "Try installing project deps from $src"; \
+      pip install --no-cache-dir -r requirements-lock.txt -i $src && break; \
+      echo "Failed at $src, try next"; \
+    done || pip install --no-cache-dir -e .
+
+# 复制日志配置文件
+COPY config/ ./config/
+
+# 复制项目文件
+COPY tradingagents/ ./tradingagents/
+COPY api/ ./api/
+COPY web/ ./web/
+COPY pyproject.toml .
+COPY VERSION .
+
+# 设置Python路径
+ENV PYTHONPATH=/app
+
+EXPOSE 8000
+
+# 健康检查
+HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
+    CMD curl -f http://localhost:8000/api/health || exit 1
+
+# 启动命令
+CMD ["uvicorn", "api.main:app", "--host", "0.0.0.0", "--port", "8000"]
+
