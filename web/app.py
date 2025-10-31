@@ -58,7 +58,7 @@ st.set_page_config(
 # 自定义CSS样式
 st.markdown("""
 <style>
-    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&amp;display=swap');
     
     /* 隐藏Streamlit顶部工具栏和Deploy按钮 - 多种选择器确保兼容性 */
     .stAppToolbar {
