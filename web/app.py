@@ -1732,23 +1732,40 @@ def render_batch_analysis_page():
             st.info(f"🖥️ 您的机器码: {mc}")
             st.info(f"👤 当前用户: {username or '未登录'}")
             
-            pwd = st.text_input("请输入激活码", type="password", help="联系管理员获取计算规则或按提示计算")
+            # 显示计算规则和示例
+            now = datetime.datetime.now()
+            expected_current = expected_password(now, mc)
+            
+            st.markdown("---")
+            st.markdown("### 📋 激活码计算规则")
+            st.code(f"""
+公式: (年 + 月 + 日 + 小时) × 7 + 机器码后3位
+
+示例计算:
+  当前时间: {now.strftime('%Y-%m-%d %H:00')}
+  年 + 月 + 日 + 小时 = {now.year} + {now.month} + {now.day} + {now.hour} = {now.year + now.month + now.day + now.hour}
+  机器码后3位: {mc[-3:]}
+  计算结果: ({now.year + now.month + now.day + now.hour}) × 7 + {int(mc[-3:]) if mc[-3:].isdigit() else 0} = {expected_current}
+            """)
+            
+            st.markdown("---")
+            pwd = st.text_input("请输入激活码", type="password", help="使用上面的公式计算激活码")
+            
             col_a, col_b = st.columns(2)
             with col_a:
-                if st.button("✅ 激活"):
+                if st.button("✅ 激活", type="primary"):
                     ok, msg = verify_and_activate(pwd, username=username)
                     if ok:
                         st.success(msg)
                         st.rerun()
                     else:
                         st.error(msg)
+                        # 显示详细信息用于调试
+                        with st.expander("🔍 查看详细调试信息", expanded=False):
+                            st.code(msg)
             with col_b:
-                if st.button("🧮 查看当前计算样例"):
-                    now = datetime.datetime.now()
-                    expected = expected_password(now, mc)
-                    st.caption(f"当前时间: {now.strftime('%Y-%m-%d %H:%M')}")
-                    st.caption(f"计算结果示例: {expected}")
-                    st.info(f"💡 提示：请使用当前时间计算的激活码进行激活")
+                if st.button("🔄 刷新示例", help="刷新当前时间的激活码示例"):
+                    st.rerun()
             return
     except Exception as e:
         st.error(f"授权模块异常: {e}")

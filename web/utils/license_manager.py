@@ -2,7 +2,7 @@ import json
 import os
 import uuid
 from pathlib import Path
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import Tuple, Optional
 
 
@@ -91,17 +91,37 @@ def verify_and_activate(input_password: str, username: Optional[str] = None) -> 
     返回：(是否成功, 提示信息)
     """
     data = _load_license(username)
-    code = data.get('machine_code') or get_or_create_machine_code(username)
+    # 确保使用正确的机器码（先尝试从数据中获取，如果没有则生成并保存）
+    code = data.get('machine_code')
+    if not code:
+        code = get_or_create_machine_code(username)
+        data['machine_code'] = code
+        _save_license(data, username)
+    
     try:
-        exp = expected_password(datetime.now(), code)
+        now = datetime.now()
+        exp = expected_password(now, code)
         input_pwd = str(input_password).strip()
-        if input_pwd == str(exp):
+        
+        # 允许当前小时和前一个小时的激活码（处理时间边界情况）
+        prev_hour_time = now - timedelta(hours=1)
+        exp_prev = expected_password(prev_hour_time, code)
+        
+        if input_pwd == str(exp) or input_pwd == str(exp_prev):
             data['activated'] = True
+            data['machine_code'] = code  # 确保保存机器码
             _save_license(data, username)
             return True, '激活成功'
         else:
-            # 提供更友好的错误消息，帮助调试
-            return False, f'激活码错误。请确保：1) 使用当前小时的激活码；2) 使用您的机器码计算的激活码；3) 格式为纯数字'
+            # 提供详细的调试信息
+            debug_info = (
+                f"当前时间: {now.strftime('%Y-%m-%d %H:%M:%S')}, "
+                f"机器码: {code}, "
+                f"期望激活码(当前小时): {exp}, "
+                f"期望激活码(上一小时): {exp_prev}, "
+                f"您输入的: {input_pwd}"
+            )
+            return False, f'激活码错误。\n调试信息: {debug_info}'
     except Exception as e:
         return False, f'激活异常: {e}'
 
