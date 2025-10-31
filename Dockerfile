@@ -33,17 +33,17 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 RUN echo '#!/bin/bash\nXvfb :99 -screen 0 1024x768x24 -ac +extension GLX &\nexport DISPLAY=:99\nexec "$@"' > /usr/local/bin/start-xvfb.sh \
     && chmod +x /usr/local/bin/start-xvfb.sh
 
-COPY requirements.txt .
+COPY requirements-lock.txt .
 
 #多源轮询安装依赖
 RUN set -e; \
     for src in \
-        https://mirrors.aliyun.com/pypi/simple \
         https://pypi.tuna.tsinghua.edu.cn/simple \
+        https://mirrors.aliyun.com/pypi/simple \
         https://pypi.doubanio.com/simple \
         https://pypi.org/simple; do \
       echo "Try installing from $src"; \
-      pip install --no-cache-dir -r requirements.txt -i $src && break; \
+      pip install --no-cache-dir -r requirements-lock.txt -i $src && break; \
       echo "Failed at $src, try next"; \
     done
 
