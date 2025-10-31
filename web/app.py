@@ -1718,30 +1718,42 @@ def render_batch_analysis_page():
     if 'current_batch_id' not in st.session_state:
         st.session_state.current_batch_id = None
     
-    # 0. 认证校验（仅批量分析板块）
+    # 0. 认证校验（仅批量分析板块）- 按用户隔离
     try:
         from utils.license_manager import get_or_create_machine_code, is_activated, verify_and_activate, expected_password
-        if not is_activated():
+        
+        # 获取当前用户名（按用户隔离激活）
+        current_user = auth_manager.get_current_user()
+        username = current_user.get("username") if current_user else None
+        
+        if not is_activated(username=username):
             st.warning("🔒 批量分析功能需激活后使用")
-            mc = get_or_create_machine_code()
-            st.info(f"🖥️ 机器码: {mc}")
+            mc = get_or_create_machine_code(username=username)
+            st.info(f"🖥️ 您的机器码: {mc}")
+            st.info(f"👤 当前用户: {username or '未登录'}")
+            
             pwd = st.text_input("请输入激活码", type="password", help="联系管理员获取计算规则或按提示计算")
             col_a, col_b = st.columns(2)
             with col_a:
                 if st.button("✅ 激活"):
-                    ok, msg = verify_and_activate(pwd)
+                    ok, msg = verify_and_activate(pwd, username=username)
                     if ok:
                         st.success(msg)
-                        st.experimental_rerun()
+                        st.rerun()
                     else:
                         st.error(msg)
             with col_b:
                 if st.button("🧮 查看当前计算样例"):
                     now = datetime.datetime.now()
-                    st.caption(f"当前时间: {now.strftime('%Y-%m-%d %H:%M')}  计算结果示例: {(expected_password(now, mc))}")
+                    expected = expected_password(now, mc)
+                    st.caption(f"当前时间: {now.strftime('%Y-%m-%d %H:%M')}")
+                    st.caption(f"计算结果示例: {expected}")
+                    st.info(f"💡 提示：请使用当前时间计算的激活码进行激活")
             return
     except Exception as e:
         st.error(f"授权模块异常: {e}")
+        import traceback
+        st.code(traceback.format_exc())
         return
 
     # 1. 批量分析配置区域
