@@ -49,6 +49,8 @@ yarn-error.log*
 frontend/dist/
 frontend/.vite/
 frontend/build/
+# 但需要保留nginx.conf用于构建
+!frontend/nginx.conf
 
 # 文档
 docs/
