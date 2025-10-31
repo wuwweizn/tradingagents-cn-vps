@@ -355,27 +355,27 @@ def initialize_session_state():
                 if username and not latest_id.startswith(f"analysis_{username}_"):
                     logger.warning(f"⚠️ [结果恢复] 分析ID {latest_id} 不属于用户 {username}，跳过恢复")
                 else:
-                progress_data = get_progress_by_id(latest_id)
-                if (progress_data and
-                    progress_data.get('status') == 'completed' and
-                    'raw_results' in progress_data):
+                    progress_data = get_progress_by_id(latest_id)
+                    if (progress_data and
+                        progress_data.get('status') == 'completed' and
+                        'raw_results' in progress_data):
 
-                    # 恢复分析结果
-                    raw_results = progress_data['raw_results']
-                    formatted_results = format_analysis_results(raw_results)
+                        # 恢复分析结果
+                        raw_results = progress_data['raw_results']
+                        formatted_results = format_analysis_results(raw_results)
 
-                    if formatted_results:
-                        st.session_state.analysis_results = formatted_results
-                        st.session_state.current_analysis_id = latest_id
-                        # 检查分析状态
-                        analysis_status = progress_data.get('status', 'completed')
-                        st.session_state.analysis_running = (analysis_status == 'running')
-                        # 恢复股票信息
-                        if 'stock_symbol' in raw_results:
-                            st.session_state.last_stock_symbol = raw_results.get('stock_symbol', '')
-                        if 'market_type' in raw_results:
-                            st.session_state.last_market_type = raw_results.get('market_type', '')
-                            logger.info(f"📊 [结果恢复] 从分析 {latest_id} 恢复结果，状态: {analysis_status} (用户: {username})")
+                        if formatted_results:
+                            st.session_state.analysis_results = formatted_results
+                            st.session_state.current_analysis_id = latest_id
+                            # 检查分析状态
+                            analysis_status = progress_data.get('status', 'completed')
+                            st.session_state.analysis_running = (analysis_status == 'running')
+                            # 恢复股票信息
+                            if 'stock_symbol' in raw_results:
+                                st.session_state.last_stock_symbol = raw_results.get('stock_symbol', '')
+                            if 'market_type' in raw_results:
+                                st.session_state.last_market_type = raw_results.get('market_type', '')
+                                logger.info(f"📊 [结果恢复] 从分析 {latest_id} 恢复结果，状态: {analysis_status} (用户: {username})")
 
         except Exception as e:
             logger.warning(f"⚠️ [结果恢复] 恢复失败: {e}")
