@@ -399,26 +399,26 @@ def initialize_session_state():
                 if username and not latest_id.startswith(f"analysis_{username}_"):
                     logger.warning(f"⚠️ [结果恢复] 分析ID {latest_id} 不属于用户 {username}，跳过恢复")
                 else:
-                progress_data = get_progress_by_id(latest_id)
-                if (progress_data and
-                    progress_data.get('status') == 'completed' and
-                    'raw_results' in progress_data):
+                    progress_data = get_progress_by_id(latest_id)
+                    if (progress_data and
+                        progress_data.get('status') == 'completed' and
+                        'raw_results' in progress_data):
 
-                    # 恢复分析结果
-                    raw_results = progress_data['raw_results']
-                    formatted_results = format_analysis_results(raw_results)
+                        # 恢复分析结果
+                        raw_results = progress_data['raw_results']
+                        formatted_results = format_analysis_results(raw_results)
 
-                    if formatted_results:
-                        st.session_state.analysis_results = formatted_results
-                        st.session_state.current_analysis_id = latest_id
-                        # 检查分析状态
-                        analysis_status = progress_data.get('status', 'completed')
-                        st.session_state.analysis_running = (analysis_status == 'running')
-                        # 恢复股票信息
-                        if 'stock_symbol' in raw_results:
-                            st.session_state.last_stock_symbol = raw_results.get('stock_symbol', '')
-                        if 'market_type' in raw_results:
-                            st.session_state.last_market_type = raw_results.get('market_type', '')
+                        if formatted_results:
+                            st.session_state.analysis_results = formatted_results
+                            st.session_state.current_analysis_id = latest_id
+                            # 检查分析状态
+                            analysis_status = progress_data.get('status', 'completed')
+                            st.session_state.analysis_running = (analysis_status == 'running')
+                            # 恢复股票信息
+                            if 'stock_symbol' in raw_results:
+                                st.session_state.last_stock_symbol = raw_results.get('stock_symbol', '')
+                            if 'market_type' in raw_results:
+                                st.session_state.last_market_type = raw_results.get('market_type', '')
                             logger.info(f"📊 [结果恢复] 从分析 {latest_id} 恢复结果，状态: {analysis_status} (用户: {username})")
 
         except Exception as e:
@@ -439,15 +439,15 @@ def initialize_session_state():
                     st.session_state.current_analysis_id = None
                     st.session_state.analysis_results = None
                 else:
-            # 使用线程检测来检查分析状态
-            from utils.thread_tracker import check_analysis_status
-            actual_status = check_analysis_status(persistent_analysis_id)
+                    # 使用线程检测来检查分析状态
+                    from utils.thread_tracker import check_analysis_status
+                    actual_status = check_analysis_status(persistent_analysis_id)
 
-            # 只在状态变化时记录日志，避免重复
-            current_session_status = st.session_state.get('last_logged_status')
-            if current_session_status != actual_status:
+                    # 只在状态变化时记录日志，避免重复
+                    current_session_status = st.session_state.get('last_logged_status')
+                    if current_session_status != actual_status:
                         logger.info(f"📊 [状态检查] 分析 {persistent_analysis_id} 实际状态: {actual_status} (用户: {username})")
-                st.session_state.last_logged_status = actual_status
+                        st.session_state.last_logged_status = actual_status
 
             if actual_status == 'running':
                 st.session_state.analysis_running = True
@@ -459,12 +459,12 @@ def initialize_session_state():
                 logger.warning(f"📊 [状态检查] 分析 {persistent_analysis_id} 未找到，清理状态")
                 st.session_state.analysis_running = False
                 st.session_state.current_analysis_id = None
-            else:
-                # 如果无法获取用户名，也清理状态（安全措施）
-                logger.warning(f"⚠️ [状态恢复] 无法获取用户名，清理分析状态")
-                st.session_state.analysis_running = False
-                st.session_state.current_analysis_id = None
-                st.session_state.analysis_results = None
+        else:
+            # 如果无法获取用户名，也清理状态（安全措施）
+            logger.warning(f"⚠️ [状态恢复] 无法获取用户名，清理分析状态")
+            st.session_state.analysis_running = False
+            st.session_state.current_analysis_id = None
+            st.session_state.analysis_results = None
     except Exception as e:
         # 如果恢复失败，保持默认值
         logger.warning(f"⚠️ [状态恢复] 恢复分析状态失败: {e}")
