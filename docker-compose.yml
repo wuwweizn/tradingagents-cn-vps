@@ -55,7 +55,7 @@ services:
         max-size: "100m"
         max-file: "3"
 
-  # React 前端服务
+  # React 前端服务（如果前端文件存在则启用）
   frontend:
     build:
       context: .
@@ -82,6 +82,8 @@ services:
       options:
         max-size: "50m"
         max-file: "3"
+    profiles:
+      - frontend  # 使用 --profile frontend 启动（如果文件存在，可以移除此profile）
 
   # MongoDB数据库服务
   mongodb:

@@ -45,12 +45,11 @@ yarn-error.log*
 .pnp.*
 .npm
 
-# 前端构建产物（构建时不需要）
+# 前端构建产物和开发文件（构建时不需要）
 frontend/dist/
 frontend/.vite/
 frontend/build/
-# 但需要保留nginx.conf用于构建
-!frontend/nginx.conf
+frontend/node_modules/
 
 # 文档
 docs/
