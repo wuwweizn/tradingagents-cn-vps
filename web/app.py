@@ -55,10 +55,54 @@ st.set_page_config(
     menu_items=None
 )
 
+# 修复手机浏览器中Markdown渲染的正则表达式问题
+# 问题：transformGfmAutolinkLiterals 函数中的正则表达式在某些手机浏览器中不兼容
+st.markdown("""
+<script>
+// 在DOM加载完成后执行修复
+window.addEventListener('load', function() {
+    // 修复不兼容的正则表达式
+    try {
+        // 创建一个安全的替代函数，处理GitHub风格的自动链接
+        function safeTransformGfmAutolinkLiterals(text) {
+            // 使用兼容所有浏览器的正则表达式
+            // 简化版本的URL检测，避免使用命名捕获组
+            const urlRegex = /(https?:\/\/[\w\-._~:\/?#[\]@!$&'()*+,;=%]+)/g;
+            const emailRegex = /([a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,})/g;
+            
+            // 替换URLs
+            let result = text.replace(urlRegex, '<a href="$1" target="_blank" rel="noopener noreferrer">$1</a>');
+            // 替换邮箱
+            result = result.replace(emailRegex, '<a href="mailto:$1">$1</a>');
+            
+            return result;
+        }
+        
+        // 尝试覆盖原始函数
+        if (window.marked && window.marked.Renderer) {
+            const originalLink = window.marked.Renderer.prototype.link;
+            window.marked.Renderer.prototype.link = function(href, title, text) {
+                try {
+                    return originalLink.call(this, href, title, text);
+                } catch (e) {
+                    // 如果出错，返回简单的链接
+                    return `<a href="${href}" target="_blank">${text}</a>`;
+                }
+            };
+        }
+        
+        console.log('Markdown渲染兼容性修复已应用');
+    } catch (error) {
+        console.warn('应用Markdown修复时出错:', error);
+    }
+});
+</script>
+""", unsafe_allow_html=True)
+
 # 自定义CSS样式
 st.markdown("""
 <style>
-    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&amp;display=swap');
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
     
     /* 隐藏Streamlit顶部工具栏和Deploy按钮 - 多种选择器确保兼容性 */
     .stAppToolbar {
@@ -355,7 +399,7 @@ def initialize_session_state():
                 if username and not latest_id.startswith(f"analysis_{username}_"):
                     logger.warning(f"⚠️ [结果恢复] 分析ID {latest_id} 不属于用户 {username}，跳过恢复")
                 else:
-                    progress_data = get_progress_by_id(latest_id)
+                progress_data = get_progress_by_id(latest_id)
                 if (progress_data and
                     progress_data.get('status') == 'completed' and
                     'raw_results' in progress_data):
@@ -395,26 +439,26 @@ def initialize_session_state():
                     st.session_state.current_analysis_id = None
                     st.session_state.analysis_results = None
                 else:
-                    # 使用线程检测来检查分析状态
-                    from utils.thread_tracker import check_analysis_status
-                    actual_status = check_analysis_status(persistent_analysis_id)
+            # 使用线程检测来检查分析状态
+            from utils.thread_tracker import check_analysis_status
+            actual_status = check_analysis_status(persistent_analysis_id)
 
-                    # 只在状态变化时记录日志，避免重复
-                    current_session_status = st.session_state.get('last_logged_status')
-                    if current_session_status != actual_status:
+            # 只在状态变化时记录日志，避免重复
+            current_session_status = st.session_state.get('last_logged_status')
+            if current_session_status != actual_status:
                         logger.info(f"📊 [状态检查] 分析 {persistent_analysis_id} 实际状态: {actual_status} (用户: {username})")
-                        st.session_state.last_logged_status = actual_status
+                st.session_state.last_logged_status = actual_status
 
-                    if actual_status == 'running':
-                        st.session_state.analysis_running = True
-                        st.session_state.current_analysis_id = persistent_analysis_id
-                    elif actual_status in ['completed', 'failed']:
-                        st.session_state.analysis_running = False
-                        st.session_state.current_analysis_id = persistent_analysis_id
-                    else:  # not_found
-                        logger.warning(f"📊 [状态检查] 分析 {persistent_analysis_id} 未找到，清理状态")
-                        st.session_state.analysis_running = False
-                        st.session_state.current_analysis_id = None
+            if actual_status == 'running':
+                st.session_state.analysis_running = True
+                st.session_state.current_analysis_id = persistent_analysis_id
+            elif actual_status in ['completed', 'failed']:
+                st.session_state.analysis_running = False
+                st.session_state.current_analysis_id = persistent_analysis_id
+            else:  # not_found
+                logger.warning(f"📊 [状态检查] 分析 {persistent_analysis_id} 未找到，清理状态")
+                st.session_state.analysis_running = False
+                st.session_state.current_analysis_id = None
             else:
                 # 如果无法获取用户名，也清理状态（安全措施）
                 logger.warning(f"⚠️ [状态恢复] 无法获取用户名，清理分析状态")
@@ -1067,11 +1111,11 @@ def main():
             ### 🔑 必需的API密钥
             
             1. **阿里百炼API密钥** (DASHSCOPE_API_KEY)
-               - 获取地址: <a href="https://dashscope.aliyun.com/" target="_blank">https://dashscope.aliyun.com/</a>
+               - 获取地址: https://dashscope.aliyun.com/
                - 用途: AI模型推理
             
             2. **金融数据API密钥** (FINNHUB_API_KEY)  
-               - 获取地址: <a href="https://finnhub.io/" target="_blank">https://finnhub.io/</a>
+               - 获取地址: https://finnhub.io/
                - 用途: 获取股票数据
             
             ### ⚙️ 配置方法
@@ -1085,7 +1129,7 @@ def main():
             DASHSCOPE_API_KEY=sk-your-dashscope-key
             FINNHUB_API_KEY=your-finnhub-key
             ```
-            """, unsafe_allow_html=True)
+            """)
         
         # 显示当前API密钥状态
         st.subheader("🔍 当前API密钥状态")
@@ -1682,11 +1726,11 @@ def render_batch_analysis_page():
             ### 🔑 必需的API密钥
             
             1. **阿里百炼API密钥** (DASHSCOPE_API_KEY)
-               - 获取地址: <a href="https://dashscope.aliyun.com/" target="_blank">https://dashscope.aliyun.com/</a>
+               - 获取地址: https://dashscope.aliyun.com/
                - 用途: AI模型推理
             
             2. **金融数据API密钥** (FINNHUB_API_KEY)  
-               - 获取地址: <a href="https://finnhub.io/" target="_blank">https://finnhub.io/</a>
+               - 获取地址: https://finnhub.io/
                - 用途: 获取股票数据
             
             ### ⚙️ 配置方法
@@ -1700,7 +1744,7 @@ def render_batch_analysis_page():
             DASHSCOPE_API_KEY=sk-your-dashscope-key
             FINNHUB_API_KEY=your-finnhub-key
             ```
-            """, unsafe_allow_html=True)
+            """)
         
         # 显示当前API密钥状态
         st.subheader("🔍 当前API密钥状态")

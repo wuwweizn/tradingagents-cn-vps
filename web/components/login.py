@@ -84,7 +84,7 @@ def render_login_form():
     # 现代化登录页面样式
     st.markdown("""
     <style>
-    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&amp;display=swap');
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
     
     .stApp {
         background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);

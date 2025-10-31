@@ -1222,8 +1222,7 @@ def render_detailed_analysis(results: List[Dict[str, Any]]):
         # 显示分析摘要
         if selected_result.get('summary'):
             st.subheader("📝 分析摘要")
-            from utils.safe_markdown import safe_markdown
-            safe_markdown(selected_result['summary'])
+            st.markdown(selected_result['summary'])
         
         # 显示性能指标
         performance = selected_result.get('performance', {})
@@ -1285,16 +1284,14 @@ def render_detailed_analysis_content(selected_result):
             # 只有一个报告，直接显示
             st.markdown(f"### {tab_names[0]}")
             st.markdown("---")
-            from utils.safe_markdown import safe_markdown
-            safe_markdown(reports[report_tabs[0]])
+            st.markdown(reports[report_tabs[0]])
         else:
             # 多个报告，使用标签页
             tabs = st.tabs(tab_names)
             
             for i, (tab, report_key) in enumerate(zip(tabs, report_tabs)):
                 with tab:
-                    from utils.safe_markdown import safe_markdown
-                    safe_markdown(reports[report_key])
+                    st.markdown(reports[report_key])
         
         return
     
@@ -1542,8 +1539,7 @@ def render_detailed_analysis_content(selected_result):
             # 格式化显示内容
             content = selected_result[module['key']]
             if isinstance(content, str):
-                from utils.safe_markdown import safe_markdown
-                safe_markdown(content)
+                st.markdown(content)
             elif isinstance(content, dict):
                 # 特殊处理团队决策报告的字典结构
                 if module['key'] == 'investment_debate_state':
@@ -1556,8 +1552,7 @@ def render_detailed_analysis_content(selected_result):
                         if value:  # 只显示非空值
                             st.subheader(key.replace('_', ' ').title())
                             if isinstance(value, str):
-                                from utils.safe_markdown import safe_markdown
-                                safe_markdown(value)
+                                st.markdown(value)
                             else:
                                 st.write(value)
             else:
@@ -1565,37 +1560,35 @@ def render_detailed_analysis_content(selected_result):
 
 def render_investment_debate_content(content):
     """渲染投资辩论内容"""
-    from utils.safe_markdown import safe_markdown
     if 'bull_analyst_report' in content and content['bull_analyst_report']:
         st.subheader("🐂 多头分析师观点")
-        safe_markdown(content['bull_analyst_report'])
+        st.markdown(content['bull_analyst_report'])
     
     if 'bear_analyst_report' in content and content['bear_analyst_report']:
         st.subheader("🐻 空头分析师观点")
-        safe_markdown(content['bear_analyst_report'])
+        st.markdown(content['bear_analyst_report'])
     
     if 'research_manager_decision' in content and content['research_manager_decision']:
         st.subheader("👨‍💼 研究经理决策")
-        safe_markdown(content['research_manager_decision'])
+        st.markdown(content['research_manager_decision'])
 
 def render_risk_debate_content(content):
     """渲染风险辩论内容"""
-    from utils.safe_markdown import safe_markdown
     if 'aggressive_analyst_report' in content and content['aggressive_analyst_report']:
         st.subheader("🔥 激进分析师观点")
-        safe_markdown(content['aggressive_analyst_report'])
+        st.markdown(content['aggressive_analyst_report'])
     
     if 'conservative_analyst_report' in content and content['conservative_analyst_report']:
         st.subheader("🛡️ 保守分析师观点")
-        safe_markdown(content['conservative_analyst_report'])
+        st.markdown(content['conservative_analyst_report'])
     
     if 'neutral_analyst_report' in content and content['neutral_analyst_report']:
         st.subheader("⚖️ 中性分析师观点")
-        safe_markdown(content['neutral_analyst_report'])
+        st.markdown(content['neutral_analyst_report'])
     
     if 'portfolio_manager_decision' in content and content['portfolio_manager_decision']:
         st.subheader("👨‍💼 投资组合经理决策")
-        safe_markdown(content['portfolio_manager_decision'])
+        st.markdown(content['portfolio_manager_decision'])
 
 def save_analysis_result(analysis_id: str, stock_symbol: str, analysts: List[str],
                         research_depth: int, result_data: Dict, status: str = "completed"):
@@ -1711,8 +1704,7 @@ def show_expanded_detail(result):
             # 如果没有reports字段，检查是否有其他分析数据
             if result.get('summary'):
                 st.subheader("📝 分析摘要")
-                from utils.safe_markdown import safe_markdown
-                safe_markdown(result['summary'])
+                st.markdown(result['summary'])
 
             # 检查是否有full_data中的报告
             if 'full_data' in result and result['full_data']:
@@ -1742,8 +1734,7 @@ def show_expanded_detail(result):
                         for i, (tab, (field_key, field_name, content)) in enumerate(zip(tabs, available_reports)):
                             with tab:
                                 if isinstance(content, str):
-                                    from utils.safe_markdown import safe_markdown
-                                    safe_markdown(content)
+                                    st.markdown(content)
                                 elif isinstance(content, dict):
                                     for key, value in content.items():
                                         if value:
@@ -1802,15 +1793,13 @@ def show_expanded_detail(result):
             if not report_content.strip().startswith('#'):
                 st.markdown(f"### {tab_names[0]}")
                 st.markdown("---")
-            from utils.safe_markdown import safe_markdown
-            safe_markdown(report_content)
+            st.markdown(report_content)
         else:
             # 多个报告，使用标签页
             tabs = st.tabs(tab_names)
 
             for i, (tab, report_key) in enumerate(zip(tabs, report_tabs)):
                 with tab:
-                    from utils.safe_markdown import safe_markdown
-                    safe_markdown(reports[report_key])
+                    st.markdown(reports[report_key])
 
         st.markdown("---")

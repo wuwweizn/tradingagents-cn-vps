@@ -10,7 +10,6 @@ from datetime import datetime
 
 # 导入导出功能
 from utils.report_exporter import render_export_buttons
-from utils.safe_markdown import safe_markdown
 
 # 导入日志模块
 from tradingagents.utils.logging_manager import get_logger
@@ -274,7 +273,7 @@ def render_decision_summary(decision, stock_symbol=None):
     # 分析推理
     if 'reasoning' in decision and decision['reasoning']:
         with st.expander("🧠 AI分析推理", expanded=True):
-            safe_markdown(decision['reasoning'])
+            st.markdown(decision['reasoning'])
 
 def render_detailed_analysis(state):
     """渲染详细分析报告"""
@@ -459,7 +458,7 @@ def render_detailed_analysis(state):
             # 格式化显示内容
             content = state[module['key']]
             if isinstance(content, str):
-                safe_markdown(content)
+                st.markdown(content)
             elif isinstance(content, dict):
                 # 特殊处理团队决策报告的字典结构
                 if module['key'] == 'investment_debate_state':
@@ -478,38 +477,38 @@ def render_investment_debate_content(content):
     """渲染研究团队决策内容"""
     if content.get('bull_history'):
         st.subheader("📈 多头研究员分析")
-        safe_markdown(content['bull_history'])
+        st.markdown(content['bull_history'])
         st.markdown("---")
 
     if content.get('bear_history'):
         st.subheader("📉 空头研究员分析")
-        safe_markdown(content['bear_history'])
+        st.markdown(content['bear_history'])
         st.markdown("---")
 
     if content.get('judge_decision'):
         st.subheader("🎯 研究经理综合决策")
-        safe_markdown(content['judge_decision'])
+        st.markdown(content['judge_decision'])
 
 def render_risk_debate_content(content):
     """渲染风险管理团队决策内容"""
     if content.get('risky_history'):
         st.subheader("🚀 激进分析师评估")
-        safe_markdown(content['risky_history'])
+        st.markdown(content['risky_history'])
         st.markdown("---")
 
     if content.get('safe_history'):
         st.subheader("🛡️ 保守分析师评估")
-        safe_markdown(content['safe_history'])
+        st.markdown(content['safe_history'])
         st.markdown("---")
 
     if content.get('neutral_history'):
         st.subheader("⚖️ 中性分析师评估")
-        safe_markdown(content['neutral_history'])
+        st.markdown(content['neutral_history'])
         st.markdown("---")
 
     if content.get('judge_decision'):
         st.subheader("🎯 投资组合经理最终决策")
-        safe_markdown(content['judge_decision'])
+        st.markdown(content['judge_decision'])
 
 def render_analysis_placeholder():
     """渲染分析占位符"""

@@ -350,38 +350,35 @@ def render_single_stock_result(stock_symbol: str, result: Dict[str, Any]):
     if state:
         st.subheader("📊 详细分析报告")
         
-        # 导入安全渲染函数
-        from utils.safe_markdown import safe_markdown
-        
         # 技术面分析
         if 'market_report' in state:
             with st.expander("📈 技术面分析", expanded=False):
-                safe_markdown(state['market_report'])
+                st.markdown(state['market_report'])
         
         # 基本面分析
         if 'fundamentals_report' in state:
             with st.expander("💰 基本面分析", expanded=False):
-                safe_markdown(state['fundamentals_report'])
+                st.markdown(state['fundamentals_report'])
         
         # 情绪分析
         if 'sentiment_report' in state:
             with st.expander("💭 情绪分析", expanded=False):
-                safe_markdown(state['sentiment_report'])
+                st.markdown(state['sentiment_report'])
         
         # 新闻分析
         if 'news_report' in state:
             with st.expander("📰 新闻分析", expanded=False):
-                safe_markdown(state['news_report'])
+                st.markdown(state['news_report'])
         
         # 风险评估
         if 'risk_assessment' in state:
             with st.expander("⚠️ 风险评估", expanded=False):
-                safe_markdown(state['risk_assessment'])
+                st.markdown(state['risk_assessment'])
         
         # 投资计划
         if 'investment_plan' in state:
             with st.expander("📋 投资计划", expanded=False):
-                safe_markdown(state['investment_plan'])
+                st.markdown(state['investment_plan'])
 
 
 def render_failed_stock_result(stock_symbol: str, result: Dict[str, Any]):
