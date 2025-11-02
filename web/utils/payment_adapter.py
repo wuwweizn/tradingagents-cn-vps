@@ -297,6 +297,8 @@ class PaymentManager:
                 "enabled": False,
                 "app_id": "",
                 "app_secret": "",
+                "app_private_key": "",  # 应用私钥（RSA2）
+                "alipay_public_key": "",  # 支付宝公钥
                 "gateway": "https://openapi.alipay.com/gateway.do",
                 "notify_url": "",
                 "return_url": "",
@@ -307,6 +309,7 @@ class PaymentManager:
                 "app_id": "",
                 "app_secret": "",
                 "mch_id": "",
+                "api_key": "",  # API密钥
                 "gateway": "https://api.mch.weixin.qq.com",
                 "notify_url": "",
                 "return_url": ""

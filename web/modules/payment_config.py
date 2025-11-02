@@ -48,18 +48,42 @@ def render_payment_config():
         with col1:
             alipay_enabled = st.checkbox("启用支付宝支付", value=alipay_config.get("enabled", False))
             alipay_app_id = st.text_input("APP ID", value=alipay_config.get("app_id", ""), type="default")
-            alipay_app_secret = st.text_input("APP Secret", value=alipay_config.get("app_secret", ""), type="password")
         
         with col2:
             alipay_gateway = st.text_input("网关地址", value=alipay_config.get("gateway", "https://openapi.alipay.com/gateway.do"))
+        
+        # 密钥配置
+        st.markdown("**密钥配置**")
+        col1, col2 = st.columns(2)
+        with col1:
+            alipay_private_key = st.text_area(
+                "应用私钥 (RSA2)", 
+                value=alipay_config.get("app_private_key", ""),
+                height=150,
+                help="应用私钥，格式为：-----BEGIN RSA PRIVATE KEY-----...-----END RSA PRIVATE KEY-----"
+            )
+        with col2:
+            alipay_public_key = st.text_area(
+                "支付宝公钥", 
+                value=alipay_config.get("alipay_public_key", ""),
+                height=150,
+                help="支付宝公钥，从开放平台获取"
+            )
+        
+        # 回调地址配置
+        st.markdown("**回调地址配置**")
+        col1, col2 = st.columns(2)
+        with col1:
             alipay_notify_url = st.text_input("回调通知地址", value=alipay_config.get("notify_url", ""))
+        with col2:
             alipay_return_url = st.text_input("返回地址", value=alipay_config.get("return_url", ""))
         
         if st.form_submit_button("保存支付宝配置", type="primary"):
             new_config = {
                 "enabled": alipay_enabled,
                 "app_id": alipay_app_id,
-                "app_secret": alipay_app_secret,
+                "app_private_key": alipay_private_key,
+                "alipay_public_key": alipay_public_key,
                 "gateway": alipay_gateway,
                 "notify_url": alipay_notify_url,
                 "return_url": alipay_return_url,
@@ -86,8 +110,15 @@ def render_payment_config():
             wechat_mch_id = st.text_input("商户号 (MCH ID)", value=wechat_config.get("mch_id", ""), type="default")
         
         with col2:
+            wechat_api_key = st.text_input("API密钥", value=wechat_config.get("api_key", ""), type="password", help="商户平台的API密钥")
             wechat_gateway = st.text_input("网关地址", value=wechat_config.get("gateway", "https://api.mch.weixin.qq.com"))
+        
+        # 回调地址配置
+        st.markdown("**回调地址配置**")
+        col1, col2 = st.columns(2)
+        with col1:
             wechat_notify_url = st.text_input("回调通知地址", value=wechat_config.get("notify_url", ""))
+        with col2:
             wechat_return_url = st.text_input("返回地址", value=wechat_config.get("return_url", ""))
         
         if st.form_submit_button("保存微信支付配置", type="primary"):
@@ -96,6 +127,7 @@ def render_payment_config():
                 "app_id": wechat_app_id,
                 "app_secret": wechat_app_secret,
                 "mch_id": wechat_mch_id,
+                "api_key": wechat_api_key,
                 "gateway": wechat_gateway,
                 "notify_url": wechat_notify_url,
                 "return_url": wechat_return_url
