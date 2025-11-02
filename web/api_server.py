@@ -116,9 +116,25 @@ if __name__ == '__main__':
     port = int(os.getenv('PAYMENT_API_PORT', 8888))
     host = os.getenv('PAYMENT_API_HOST', '0.0.0.0')
     
-    logger.info(f"🚀 启动支付回调API服务器: http://{host}:{port}")
-    logger.info(f"📋 支付宝回调地址: http://{host}:{port}/api/payment/notify/alipay")
-    logger.info(f"📋 微信支付回调地址: http://{host}:{port}/api/payment/notify/wechat")
+    # HTTPS配置（可选）
+    ssl_cert = os.getenv('SSL_CERT_PATH', '')
+    ssl_key = os.getenv('SSL_KEY_PATH', '')
     
-    app.run(host=host, port=port, debug=False)
+    if ssl_cert and ssl_key:
+        ssl_context = (ssl_cert, ssl_key)
+        protocol = 'https'
+    else:
+        ssl_context = None
+        protocol = 'http'
+    
+    logger.info(f"🚀 启动支付回调API服务器: {protocol}://{host}:{port}")
+    logger.info(f"📋 支付宝回调地址: {protocol}://{host}:{port}/api/payment/notify/alipay")
+    logger.info(f"📋 微信支付回调地址: {protocol}://{host}:{port}/api/payment/notify/wechat")
+    
+    if ssl_context:
+        logger.info(f"🔒 使用HTTPS (SSL证书: {ssl_cert})")
+        app.run(host=host, port=port, ssl_context=ssl_context, debug=False)
+    else:
+        logger.info("⚠️  使用HTTP（建议配置Nginx反向代理实现HTTPS）")
+        app.run(host=host, port=port, debug=False)
 
