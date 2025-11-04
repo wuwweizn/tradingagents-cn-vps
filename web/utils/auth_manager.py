@@ -41,7 +41,7 @@ class AuthManager:
                 "admin": {
                     "password_hash": self._hash_password("admin123"),
                     "role": "admin",
-                    "permissions": ["analysis", "batch_analysis", "config", "admin"],
+                    "permissions": ["analysis", "config", "admin", "batch_analysis"],
                     "points": 0,
                     "created_at": time.time()
                 },

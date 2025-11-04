@@ -24,6 +24,15 @@ from tradingagents.config.config_manager import (
     config_manager, ModelConfig, PricingConfig
 )
 
+try:
+    from web.utils.model_points_manager import model_points_manager
+    from web.modules.points_package_management import render_points_package_management
+    from web.modules.payment_config import render_payment_config
+except ImportError:
+    from utils.model_points_manager import model_points_manager
+    from modules.points_package_management import render_points_package_management
+    from modules.payment_config import render_payment_config
+
 
 def render_config_management():
     """渲染配置管理页面"""
@@ -39,11 +48,21 @@ def render_config_management():
     st.sidebar.title("配置选项")
     page = st.sidebar.selectbox(
         "选择功能",
+<<<<<<< HEAD
         ["模型配置", "定价设置", "模型点数设置", "使用统计", "系统设置"]
+=======
+        ["模型配置", "模型点数配置", "点数套餐管理", "支付配置", "定价设置", "使用统计", "系统设置"]
+>>>>>>> e1675de11a0b00b33a679b6336d4ad7c192979a0
     )
     
     if page == "模型配置":
         render_model_config()
+    elif page == "模型点数配置":
+        render_model_points_config()
+    elif page == "点数套餐管理":
+        render_points_package_management()
+    elif page == "支付配置":
+        render_payment_config()
     elif page == "定价设置":
         render_pricing_config()
     elif page == "模型点数设置":
@@ -170,6 +189,192 @@ def render_model_config():
             st.rerun()
         else:
             st.error("请填写所有必需字段")
+
+
+def render_model_points_config():
+    """渲染模型点数配置页面"""
+    st.markdown("**💎 模型点数配置**")
+    st.info("💡 管理员可以在此设置不同模型进行分析时消耗的点数。点数越高，表示使用该模型的成本越高。")
+    
+    # 权限检查
+    try:
+        from web.utils.auth_manager import auth_manager
+        if not auth_manager or not auth_manager.check_permission("admin"):
+            st.error("❌ 只有管理员可以配置模型点数")
+            return
+    except Exception as e:
+        st.warning(f"⚠️ 权限检查失败: {e}")
+    
+    # 获取所有配置
+    configs = model_points_manager.get_all_configs()
+    
+    # 按提供商分组显示
+    providers = {}
+    for key, points in sorted(configs.items()):
+        provider = key.split(':')[0]
+        model = key.split(':', 1)[1]
+        if provider not in providers:
+            providers[provider] = []
+        providers[provider].append((model, points))
+    
+    # 显示当前配置
+    st.markdown("**📋 当前模型点数配置**")
+    
+    # 创建表格数据
+    table_data = []
+    for provider, models in sorted(providers.items()):
+        for model, points in models:
+            table_data.append({
+                "提供商": provider,
+                "模型": model,
+                "消耗点数": points
+            })
+    
+    if table_data:
+        df = pd.DataFrame(table_data)
+        st.dataframe(df, use_container_width=True, height=400)
+    else:
+        st.warning("暂无配置")
+    
+    st.markdown("---")
+    
+    # 编辑配置
+    st.markdown("**✏️ 编辑模型点数**")
+    
+    # 选择提供商
+    selected_provider = st.selectbox(
+        "选择提供商",
+        options=sorted(providers.keys()),
+        key="edit_provider_select"
+    )
+    
+    if selected_provider:
+        # 选择模型
+        available_models = [m[0] for m in providers[selected_provider]]
+        selected_model = st.selectbox(
+            "选择模型",
+            options=available_models,
+            key="edit_model_select"
+        )
+        
+        # 获取当前点数
+        current_points = next((m[1] for m in providers[selected_provider] if m[0] == selected_model), 1)
+        
+        # 输入新点数
+        col1, col2 = st.columns(2)
+        with col1:
+            new_points = st.number_input(
+                "消耗点数",
+                min_value=1,
+                max_value=100,
+                value=current_points,
+                step=1,
+                key="edit_points_input"
+            )
+        with col2:
+            st.info(f"💡 当前配置: {current_points} 点")
+        
+        # 处理OpenRouter的特殊情况（需要category）
+        category = None
+        if selected_provider == "openrouter" and "/" in selected_model:
+            # 格式：category/model
+            parts = selected_model.split("/", 1)
+            if len(parts) == 2:
+                category, model_name = parts
+                model_key = f"{selected_provider}:{category}/{model_name}"
+            else:
+                model_key = f"{selected_provider}:{selected_model}"
+        else:
+            model_key = f"{selected_provider}:{selected_model}"
+        
+        if st.button("保存点数配置", type="primary", key="save_points_config"):
+            # 处理category
+            if selected_provider == "openrouter" and "/" in selected_model:
+                parts = selected_model.split("/", 1)
+                if len(parts) == 2:
+                    category, model_name = parts
+                    success = model_points_manager.set_points(selected_provider, model_name, new_points, category)
+                else:
+                    success = model_points_manager.set_points(selected_provider, selected_model, new_points)
+            else:
+                success = model_points_manager.set_points(selected_provider, selected_model, new_points)
+            
+            if success:
+                st.success(f"✅ 已保存：{selected_provider}:{selected_model} = {new_points} 点")
+                st.rerun()
+            else:
+                st.error("❌ 保存失败")
+    
+    st.markdown("---")
+    
+    # 添加新模型配置
+    st.markdown("**➕ 添加新模型点数配置**")
+    
+    col1, col2, col3 = st.columns(3)
+    with col1:
+        new_provider = st.selectbox(
+            "提供商",
+            options=["dashscope", "deepseek", "google", "openai", "openrouter", "siliconflow", "qianfan", "custom_openai"],
+            key="new_points_provider"
+        )
+    
+    with col2:
+        new_model = st.text_input(
+            "模型名称",
+            placeholder="例如: gpt-4o, qwen-plus-latest",
+            key="new_points_model"
+        )
+        if new_provider == "openrouter":
+            st.caption("格式: category/model (例如: openai/gpt-4o)")
+    
+    with col3:
+        new_points_value = st.number_input(
+            "消耗点数",
+            min_value=1,
+            max_value=100,
+            value=1,
+            step=1,
+            key="new_points_value"
+        )
+    
+    if st.button("添加配置", key="add_points_config"):
+        if new_provider and new_model:
+            # 处理OpenRouter的category
+            category = None
+            if new_provider == "openrouter" and "/" in new_model:
+                parts = new_model.split("/", 1)
+                if len(parts) == 2:
+                    category, model_name = parts
+                    success = model_points_manager.set_points(new_provider, model_name, new_points_value, category)
+                else:
+                    success = model_points_manager.set_points(new_provider, new_model, new_points_value)
+            else:
+                success = model_points_manager.set_points(new_provider, new_model, new_points_value)
+            
+            if success:
+                st.success(f"✅ 已添加：{new_provider}:{new_model} = {new_points_value} 点")
+                st.rerun()
+            else:
+                st.error("❌ 添加失败")
+        else:
+            st.error("❌ 请填写所有字段")
+    
+    st.markdown("---")
+    
+    # 批量操作
+    st.markdown("**⚙️ 批量操作**")
+    
+    col1, col2 = st.columns(2)
+    with col1:
+        if st.button("重置为默认值", key="reset_points_default"):
+            if model_points_manager.reset_to_default():
+                st.success("✅ 已重置为默认配置")
+                st.rerun()
+            else:
+                st.error("❌ 重置失败")
+    
+    with col2:
+        st.info("💡 重置将恢复所有模型点数为默认值")
 
 
 def render_pricing_config():

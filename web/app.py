@@ -343,7 +343,7 @@ def initialize_session_state():
         try:
             from utils.async_progress_tracker import get_latest_analysis_id, get_progress_by_id
             from utils.analysis_runner import format_analysis_results
-            
+
             # 获取当前用户名
             current_user = auth_manager.get_current_user()
             username = current_user.get("username") if current_user else None
@@ -375,7 +375,7 @@ def initialize_session_state():
                                 st.session_state.last_stock_symbol = raw_results.get('stock_symbol', '')
                             if 'market_type' in raw_results:
                                 st.session_state.last_market_type = raw_results.get('market_type', '')
-                            logger.info(f"📊 [结果恢复] 从分析 {latest_id} 恢复结果，状态: {analysis_status} (用户: {username})")
+                                logger.info(f"📊 [结果恢复] 从分析 {latest_id} 恢复结果，状态: {analysis_status} (用户: {username})")
 
         except Exception as e:
             logger.warning(f"⚠️ [结果恢复] 恢复失败: {e}")
@@ -648,17 +648,31 @@ def main():
             return
 
     # 全局侧边栏CSS样式 - 确保所有页面一致
+    # 清除登录页面的样式，确保侧边栏正常显示
     st.markdown("""
     <style>
-    /* 统一侧边栏宽度为320px */
+    /* 清除登录页面的背景样式，恢复默认 */
+    .stApp {
+        background: white !important;
+    }
+    
+    /* 确保侧边栏始终可见且正常显示 */
     section[data-testid="stSidebar"] {
+        display: block !important;
+        visibility: visible !important;
+        opacity: 1 !important;
         width: 320px !important;
         min-width: 320px !important;
         max-width: 320px !important;
+        position: relative !important;
+        z-index: 100 !important;
     }
-
-    /* 侧边栏内容容器 */
+    
+    /* 确保侧边栏内容容器可见 */
     section[data-testid="stSidebar"] > div {
+        display: block !important;
+        visibility: visible !important;
+        opacity: 1 !important;
         width: 320px !important;
         min-width: 320px !important;
         max-width: 320px !important;
@@ -931,7 +945,11 @@ def main():
 
     page = st.sidebar.selectbox(
         "切换功能模块",
+<<<<<<< HEAD
         ["股票分析", "批量分析", "配置管理", "缓存管理", "会员管理", "公告管理", "密码管理", "Token统计", "操作日志", "分析结果", "系统状态"],
+=======
+        ["📊 股票分析", "📈 批量分析", "💰 点数商城", "⚙️ 配置管理", "💾 缓存管理", "👥 会员管理", "🔐 密码管理", "💰 Token统计", "📋 操作日志", "📈 分析结果", "🔧 系统状态"],
+>>>>>>> e1675de11a0b00b33a679b6336d4ad7c192979a0
         label_visibility="collapsed"
     )
     
@@ -989,7 +1007,20 @@ def main():
         except ImportError as e:
             st.error(f"缓存管理页面加载失败: {e}")
         return
+<<<<<<< HEAD
     elif page == "Token统计":
+=======
+    elif page == "💰 点数商城":
+        # 所有登录用户都可以访问
+        try:
+            from modules.points_store import render_points_store
+            render_points_store()
+        except ImportError as e:
+            st.error(f"点数商城模块加载失败: {e}")
+            st.info("请确保已安装所有依赖包")
+        return
+    elif page == "💰 Token统计":
+>>>>>>> e1675de11a0b00b33a679b6336d4ad7c192979a0
         # 检查配置权限
         if not require_permission("config"):
             return
@@ -1217,6 +1248,7 @@ def main():
                 # 扣点校验（在主线程中执行）
                 try:
                     from utils.auth_manager import auth_manager as _auth
+<<<<<<< HEAD
                     from utils.model_points import get_model_points as _get_model_points
                     current_user = _auth.get_current_user()
                     username = current_user and current_user.get("username")
@@ -1231,6 +1263,30 @@ def main():
                             return
                         else:
                             st.success(f"已扣除 {points_cost} 点，剩余点数: {_auth.get_user_points(username)}")
+=======
+                    from utils.model_points_manager import model_points_manager
+                    
+                    current_user = _auth.get_current_user()
+                    username = current_user and current_user.get("username")
+                    if username:
+                        # 获取当前选择的模型信息
+                        llm_provider = config.get('llm_provider', 'dashscope')
+                        llm_model = config.get('llm_model', 'qwen-plus-latest')
+                        model_category = st.session_state.get('model_category', 'openai')
+                        
+                        # 根据模型获取消耗点数
+                        points_needed = model_points_manager.get_points(
+                            llm_provider, 
+                            llm_model, 
+                            model_category if llm_provider == "openrouter" else None
+                        )
+                        
+                        if not _auth.try_deduct_points(username, points_needed):
+                            st.error(f"❌ 点数不足，需要 {points_needed} 点，无法开始分析")
+                            return
+                        else:
+                            st.success(f"💎 已扣除 {points_needed} 点（模型: {llm_provider}/{llm_model}），剩余点数: {_auth.get_user_points(username)}")
+>>>>>>> e1675de11a0b00b33a679b6336d4ad7c192979a0
                 except Exception as _e:
                     logger.warning(f"点数扣减失败(将继续执行): {_e}")
                 
@@ -1679,8 +1735,8 @@ def render_batch_analysis_page():
     
     # 权限检查（双重检查，确保安全）
     if not auth_manager.check_permission("batch_analysis"):
-        st.error("❌ 您没有批量分析权限")
-        st.info("💡 请联系管理员为您分配 'batch_analysis' 权限")
+        st.error("❌ 您没有批量分析权限，请联系管理员分配该权限")
+        st.info("💡 批量分析功能需要管理员在「会员管理」页面为您分配 `batch_analysis` 权限")
         return
     
     # 页面标题
@@ -1840,6 +1896,7 @@ def render_batch_analysis_page():
             # 扣点校验（在主线程中执行）
             try:
                 from utils.auth_manager import auth_manager as _auth
+<<<<<<< HEAD
                 from utils.model_points import get_model_points as _get_model_points
                 current_user = _auth.get_current_user()
                 username = current_user and current_user.get("username")
@@ -1855,6 +1912,34 @@ def render_batch_analysis_page():
                         return
                     else:
                         st.success(f"已扣除 {need_points} 点（{len(form_data['stock_symbols'])} 个股票 × {points_per_stock} 点/股票），剩余点数: {_auth.get_user_points(username)}")
+=======
+                from utils.model_points_manager import model_points_manager
+                
+                current_user = _auth.get_current_user()
+                username = current_user and current_user.get("username")
+                if username:
+                    # 获取当前选择的模型信息
+                    llm_provider = config.get('llm_provider', 'dashscope')
+                    llm_model = config.get('llm_model', 'qwen-plus-latest')
+                    model_category = st.session_state.get('model_category', 'openai')
+                    
+                    # 根据模型获取每个股票分析消耗的点数
+                    points_per_stock = model_points_manager.get_points(
+                        llm_provider, 
+                        llm_model, 
+                        model_category if llm_provider == "openrouter" else None
+                    )
+                    
+                    # 批量分析总点数 = 每个股票的点数 × 股票数量
+                    stock_count = len(form_data['stock_symbols'])
+                    need_points = points_per_stock * stock_count
+                    
+                    if not _auth.try_deduct_points(username, need_points):
+                        st.error(f"❌ 点数不足，需要 {need_points} 点（{points_per_stock} 点/股票 × {stock_count} 股票），无法开始批量分析")
+                        return
+                    else:
+                        st.success(f"💎 已扣除 {need_points} 点（模型: {llm_provider}/{llm_model}，{points_per_stock} 点/股票 × {stock_count} 股票），剩余点数: {_auth.get_user_points(username)}")
+>>>>>>> e1675de11a0b00b33a679b6336d4ad7c192979a0
             except Exception as _e:
                 logger.warning(f"批量分析点数扣减失败(将继续执行): {_e}")
             
