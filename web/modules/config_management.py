@@ -39,13 +39,15 @@ def render_config_management():
     st.sidebar.title("配置选项")
     page = st.sidebar.selectbox(
         "选择功能",
-        ["模型配置", "定价设置", "使用统计", "系统设置"]
+        ["模型配置", "定价设置", "模型点数设置", "使用统计", "系统设置"]
     )
     
     if page == "模型配置":
         render_model_config()
     elif page == "定价设置":
         render_pricing_config()
+    elif page == "模型点数设置":
+        render_model_points_config()
     elif page == "使用统计":
         render_usage_statistics()
     elif page == "系统设置":
@@ -268,6 +270,143 @@ def render_pricing_config():
             st.rerun()
         else:
             st.error("请填写供应商和模型名称")
+
+
+def render_model_points_config():
+    """渲染模型点数配置页面"""
+    st.markdown("**模型点数设置**")
+    st.markdown("管理员可以设置不同模型版本使用时的消耗点数")
+    
+    # 导入模型点数管理器
+    try:
+        from utils.model_points import (
+            get_all_model_points, 
+            set_model_points, 
+            delete_model_points,
+            get_model_points,
+            reload_config,
+            DEFAULT_POINTS
+        )
+    except ImportError:
+        st.error("无法导入模型点数管理模块")
+        return
+    
+    # 重新加载配置（确保获取最新数据）
+    reload_config()
+    
+    # 获取所有配置
+    all_config = get_all_model_points()
+    
+    # 显示当前配置
+    st.markdown("**当前模型点数配置**")
+    
+    if all_config:
+        # 按提供商分组显示
+        config_data = []
+        for (provider, model), points in sorted(all_config.items()):
+            config_data.append({
+                "提供商": provider,
+                "模型名称": model,
+                "消耗点数": points
+            })
+        
+        df = pd.DataFrame(config_data)
+        st.dataframe(df, use_container_width=True)
+    else:
+        st.info("暂无模型点数配置")
+    
+    st.markdown("---")
+    
+    # 编辑现有配置
+    st.markdown("**编辑模型点数配置**")
+    
+    if all_config:
+        # 选择要编辑的配置
+        config_options = [f"{provider} - {model}" for (provider, model) in sorted(all_config.keys())]
+        selected_idx = st.selectbox(
+            "选择要编辑的模型",
+            range(len(config_options)),
+            format_func=lambda x: config_options[x],
+            key="select_model_points_to_edit"
+        )
+        
+        if selected_idx is not None:
+            selected_key = sorted(all_config.keys())[selected_idx]
+            provider, model = selected_key
+            current_points = all_config[selected_key]
+            
+            col1, col2, col3 = st.columns([2, 2, 1])
+            
+            with col1:
+                st.text_input("提供商", value=provider, disabled=True, key="edit_provider")
+            
+            with col2:
+                st.text_input("模型名称", value=model, disabled=True, key="edit_model")
+            
+            with col3:
+                new_points = st.number_input(
+                    "消耗点数",
+                    min_value=1,
+                    value=current_points,
+                    step=1,
+                    key="edit_points"
+                )
+            
+            col_save, col_delete = st.columns([1, 1])
+            
+            with col_save:
+                if st.button("保存", type="primary", key="save_model_points"):
+                    if set_model_points(provider, model, new_points):
+                        st.success("配置已保存！")
+                        st.rerun()
+                    else:
+                        st.error("保存失败")
+            
+            with col_delete:
+                if st.button("删除配置", type="secondary", key="delete_model_points"):
+                    if delete_model_points(provider, model):
+                        st.success("配置已删除，将使用默认点数")
+                        st.rerun()
+                    else:
+                        st.error("删除失败")
+    
+    st.markdown("---")
+    
+    # 添加新配置
+    st.markdown("**添加新模型点数配置**")
+    
+    col1, col2, col3 = st.columns([2, 2, 1])
+    
+    with col1:
+        new_provider = st.text_input("提供商", placeholder="例如: dashscope, google, openai", key="new_provider")
+    
+    with col2:
+        new_model = st.text_input("模型名称", placeholder="例如: qwen-turbo, gemini-2.5-pro", key="new_model")
+    
+    with col3:
+        new_points_value = st.number_input("消耗点数", min_value=1, value=1, step=1, key="new_points")
+    
+    if st.button("添加配置", type="primary", key="add_model_points"):
+        if new_provider and new_model:
+            provider_lower = new_provider.lower().strip()
+            model_strip = new_model.strip()
+            
+            # 检查是否已存在
+            if (provider_lower, model_strip) in all_config:
+                st.warning("该模型配置已存在，请使用编辑功能修改")
+            else:
+                if set_model_points(provider_lower, model_strip, new_points_value):
+                    st.success("配置已添加！")
+                    st.rerun()
+                else:
+                    st.error("添加失败")
+        else:
+            st.error("请填写提供商和模型名称")
+    
+    st.markdown("---")
+    
+    # 显示默认点数说明
+    st.info(f"**说明**：未配置的模型将使用默认点数 {DEFAULT_POINTS} 点")
 
 
 def render_usage_statistics():

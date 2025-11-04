@@ -49,7 +49,7 @@ from utils.user_activity_logger import user_activity_logger
 # 设置页面配置
 st.set_page_config(
     page_title="TradingAgents-CN 股票分析平台",
-    page_icon="📈",
+    page_icon=None,
     layout="wide",
     initial_sidebar_state="expanded",
     menu_items=None
@@ -909,7 +909,7 @@ def main():
 
     # 添加调试按钮（仅在调试模式下显示）
     if os.getenv('DEBUG_MODE') == 'true':
-        if st.button("🔄 清除会话状态"):
+        if st.button("清除会话状态"):
             st.session_state.clear()
             st.experimental_rerun()
 
@@ -917,7 +917,7 @@ def main():
     render_header()
 
     # 侧边栏布局 - 标题在最顶部
-    st.sidebar.title("🤖 TradingAgents-CN")
+    st.sidebar.title("TradingAgents-CN")
     st.sidebar.markdown("---")
     
     # 页面导航 - 在标题下方显示用户信息
@@ -927,11 +927,11 @@ def main():
     st.sidebar.markdown("---")
 
     # 添加功能切换标题
-    st.sidebar.markdown("**🎯 功能导航**")
+    st.sidebar.markdown("**功能导航**")
 
     page = st.sidebar.selectbox(
         "切换功能模块",
-        ["📊 股票分析", "📈 批量分析", "⚙️ 配置管理", "💾 缓存管理", "👥 会员管理", "🔐 密码管理", "💰 Token统计", "📋 操作日志", "📈 分析结果", "🔧 系统状态"],
+        ["股票分析", "批量分析", "配置管理", "缓存管理", "会员管理", "公告管理", "密码管理", "Token统计", "操作日志", "分析结果", "系统状态"],
         label_visibility="collapsed"
     )
     
@@ -952,7 +952,7 @@ def main():
     st.sidebar.markdown("---")
 
     # 根据选择的页面渲染不同内容
-    if page == "📈 批量分析":
+    if page == "批量分析":
         # 检查批量分析权限
         if not require_permission("batch_analysis"):
             return
@@ -968,7 +968,7 @@ def main():
             st.error(f"批量分析模块加载失败: {e}")
             st.info("请确保已安装所有依赖包")
         return
-    elif page == "⚙️ 配置管理":
+    elif page == "配置管理":
         # 检查配置权限
         if not require_permission("config"):
             return
@@ -979,7 +979,7 @@ def main():
             st.error(f"配置管理模块加载失败: {e}")
             st.info("请确保已安装所有依赖包")
         return
-    elif page == "💾 缓存管理":
+    elif page == "缓存管理":
         # 检查管理员权限
         if not require_permission("admin"):
             return
@@ -989,7 +989,7 @@ def main():
         except ImportError as e:
             st.error(f"缓存管理页面加载失败: {e}")
         return
-    elif page == "💰 Token统计":
+    elif page == "Token统计":
         # 检查配置权限
         if not require_permission("config"):
             return
@@ -1000,7 +1000,7 @@ def main():
             st.error(f"Token统计页面加载失败: {e}")
             st.info("请确保已安装所有依赖包")
         return
-    elif page == "👥 会员管理":
+    elif page == "会员管理":
         # 仅管理员可访问
         if not require_permission("admin"):
             return
@@ -1011,7 +1011,18 @@ def main():
             st.error(f"会员管理模块加载失败: {e}")
             st.info("请确保已安装所有依赖包")
         return
-    elif page == "🔐 密码管理":
+    elif page == "公告管理":
+        # 仅管理员可访问
+        if not require_permission("admin"):
+            return
+        try:
+            from modules.announcement_management import render_announcement_management
+            render_announcement_management()
+        except ImportError as e:
+            st.error(f"公告管理模块加载失败: {e}")
+            st.info("请确保已安装所有依赖包")
+        return
+    elif page == "密码管理":
         # 所有登录用户都可以访问（修改自己的密码）
         # 管理员可以修改他人密码
         try:
@@ -1021,7 +1032,7 @@ def main():
             st.error(f"密码管理模块加载失败: {e}")
             st.info("请确保已安装所有依赖包")
         return
-    elif page == "📋 操作日志":
+    elif page == "操作日志":
         # 检查管理员权限
         if not require_permission("admin"):
             return
@@ -1032,7 +1043,7 @@ def main():
             st.error(f"操作日志模块加载失败: {e}")
             st.info("请确保已安装所有依赖包")
         return
-    elif page == "📈 分析结果":
+    elif page == "分析结果":
         # 检查分析权限
         if not require_permission("analysis"):
             return
@@ -1043,11 +1054,11 @@ def main():
             st.error(f"分析结果模块加载失败: {e}")
             st.info("请确保已安装所有依赖包")
         return
-    elif page == "🔧 系统状态":
+    elif page == "系统状态":
         # 检查管理员权限
         if not require_permission("admin"):
             return
-        st.header("🔧 系统状态")
+        st.header("系统状态")
         st.info("系统状态功能开发中...")
         return
 
@@ -1206,14 +1217,20 @@ def main():
                 # 扣点校验（在主线程中执行）
                 try:
                     from utils.auth_manager import auth_manager as _auth
+                    from utils.model_points import get_model_points as _get_model_points
                     current_user = _auth.get_current_user()
                     username = current_user and current_user.get("username")
                     if username:
-                        if not _auth.try_deduct_points(username, 1):
-                            st.error("❌ 点数不足，无法开始分析")
+                        # 根据选择的模型获取消耗点数
+                        llm_provider = st.session_state.get('llm_provider', 'dashscope')
+                        llm_model = st.session_state.get('llm_model', 'qwen-turbo')
+                        points_cost = _get_model_points(llm_provider, llm_model)
+                        
+                        if not _auth.try_deduct_points(username, points_cost):
+                            st.error(f"点数不足，需要 {points_cost} 点，无法开始分析")
                             return
                         else:
-                            st.success(f"💎 已扣除 1 点，剩余点数: {_auth.get_user_points(username)}")
+                            st.success(f"已扣除 {points_cost} 点，剩余点数: {_auth.get_user_points(username)}")
                 except Exception as _e:
                     logger.warning(f"点数扣减失败(将继续执行): {_e}")
                 
@@ -1823,15 +1840,21 @@ def render_batch_analysis_page():
             # 扣点校验（在主线程中执行）
             try:
                 from utils.auth_manager import auth_manager as _auth
+                from utils.model_points import get_model_points as _get_model_points
                 current_user = _auth.get_current_user()
                 username = current_user and current_user.get("username")
                 if username:
-                    need_points = len(form_data['stock_symbols'])
+                    # 根据选择的模型获取每个股票消耗的点数
+                    llm_provider = st.session_state.get('llm_provider', 'dashscope')
+                    llm_model = st.session_state.get('llm_model', 'qwen-turbo')
+                    points_per_stock = _get_model_points(llm_provider, llm_model)
+                    need_points = len(form_data['stock_symbols']) * points_per_stock
+                    
                     if not _auth.try_deduct_points(username, need_points):
-                        st.error(f"❌ 点数不足，需要 {need_points} 点，无法开始批量分析")
+                        st.error(f"点数不足，需要 {need_points} 点（{len(form_data['stock_symbols'])} 个股票 × {points_per_stock} 点/股票），无法开始批量分析")
                         return
                     else:
-                        st.success(f"💎 已扣除 {need_points} 点，剩余点数: {_auth.get_user_points(username)}")
+                        st.success(f"已扣除 {need_points} 点（{len(form_data['stock_symbols'])} 个股票 × {points_per_stock} 点/股票），剩余点数: {_auth.get_user_points(username)}")
             except Exception as _e:
                 logger.warning(f"批量分析点数扣减失败(将继续执行): {_e}")
             
