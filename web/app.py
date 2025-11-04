@@ -49,7 +49,7 @@ from utils.user_activity_logger import user_activity_logger
 # 设置页面配置
 st.set_page_config(
     page_title="TradingAgents-CN 股票分析平台",
-    page_icon=None,
+    page_icon="📈",
     layout="wide",
     initial_sidebar_state="expanded",
     menu_items=None
@@ -338,44 +338,35 @@ def initialize_session_state():
     if 'form_config' not in st.session_state:
         st.session_state.form_config = None
 
-    # 尝试从最新完成的分析中恢复结果（只恢复当前用户的分析）
+    # 尝试从最新完成的分析中恢复结果
     if not st.session_state.analysis_results:
         try:
             from utils.async_progress_tracker import get_latest_analysis_id, get_progress_by_id
             from utils.analysis_runner import format_analysis_results
-            
-            # 获取当前用户名
-            current_user = auth_manager.get_current_user()
-            username = current_user.get("username") if current_user else None
 
-            # 只获取当前用户的最新分析
-            latest_id = get_latest_analysis_id(username=username) if username else None
+            latest_id = get_latest_analysis_id()
             if latest_id:
-                # 验证分析ID是否属于当前用户
-                if username and not latest_id.startswith(f"analysis_{username}_"):
-                    logger.warning(f"⚠️ [结果恢复] 分析ID {latest_id} 不属于用户 {username}，跳过恢复")
-                else:
-                    progress_data = get_progress_by_id(latest_id)
-                    if (progress_data and
-                        progress_data.get('status') == 'completed' and
-                        'raw_results' in progress_data):
+                progress_data = get_progress_by_id(latest_id)
+                if (progress_data and
+                    progress_data.get('status') == 'completed' and
+                    'raw_results' in progress_data):
 
-                        # 恢复分析结果
-                        raw_results = progress_data['raw_results']
-                        formatted_results = format_analysis_results(raw_results)
+                    # 恢复分析结果
+                    raw_results = progress_data['raw_results']
+                    formatted_results = format_analysis_results(raw_results)
 
-                        if formatted_results:
-                            st.session_state.analysis_results = formatted_results
-                            st.session_state.current_analysis_id = latest_id
-                            # 检查分析状态
-                            analysis_status = progress_data.get('status', 'completed')
-                            st.session_state.analysis_running = (analysis_status == 'running')
-                            # 恢复股票信息
-                            if 'stock_symbol' in raw_results:
-                                st.session_state.last_stock_symbol = raw_results.get('stock_symbol', '')
-                            if 'market_type' in raw_results:
-                                st.session_state.last_market_type = raw_results.get('market_type', '')
-                            logger.info(f"📊 [结果恢复] 从分析 {latest_id} 恢复结果，状态: {analysis_status} (用户: {username})")
+                    if formatted_results:
+                        st.session_state.analysis_results = formatted_results
+                        st.session_state.current_analysis_id = latest_id
+                        # 检查分析状态
+                        analysis_status = progress_data.get('status', 'completed')
+                        st.session_state.analysis_running = (analysis_status == 'running')
+                        # 恢复股票信息
+                        if 'stock_symbol' in raw_results:
+                            st.session_state.last_stock_symbol = raw_results.get('stock_symbol', '')
+                        if 'market_type' in raw_results:
+                            st.session_state.last_market_type = raw_results.get('market_type', '')
+                        logger.info(f"📊 [结果恢复] 从分析 {latest_id} 恢复结果，状态: {analysis_status}")
 
         except Exception as e:
             logger.warning(f"⚠️ [结果恢复] 恢复失败: {e}")
@@ -384,43 +375,26 @@ def initialize_session_state():
     try:
         persistent_analysis_id = get_persistent_analysis_id()
         if persistent_analysis_id:
-            # 验证分析ID是否属于当前用户
-            current_user = auth_manager.get_current_user()
-            username = current_user.get("username") if current_user else None
-            
-            if username:
-                if not persistent_analysis_id.startswith(f"analysis_{username}_"):
-                    logger.warning(f"⚠️ [状态恢复] 分析ID {persistent_analysis_id} 不属于用户 {username}，清理状态")
-                    st.session_state.analysis_running = False
-                    st.session_state.current_analysis_id = None
-                    st.session_state.analysis_results = None
-                else:
-                    # 使用线程检测来检查分析状态
-                    from utils.thread_tracker import check_analysis_status
-                    actual_status = check_analysis_status(persistent_analysis_id)
+            # 使用线程检测来检查分析状态
+            from utils.thread_tracker import check_analysis_status
+            actual_status = check_analysis_status(persistent_analysis_id)
 
-                    # 只在状态变化时记录日志，避免重复
-                    current_session_status = st.session_state.get('last_logged_status')
-                    if current_session_status != actual_status:
-                        logger.info(f"📊 [状态检查] 分析 {persistent_analysis_id} 实际状态: {actual_status} (用户: {username})")
-                        st.session_state.last_logged_status = actual_status
+            # 只在状态变化时记录日志，避免重复
+            current_session_status = st.session_state.get('last_logged_status')
+            if current_session_status != actual_status:
+                logger.info(f"📊 [状态检查] 分析 {persistent_analysis_id} 实际状态: {actual_status}")
+                st.session_state.last_logged_status = actual_status
 
-                    if actual_status == 'running':
-                        st.session_state.analysis_running = True
-                        st.session_state.current_analysis_id = persistent_analysis_id
-                    elif actual_status in ['completed', 'failed']:
-                        st.session_state.analysis_running = False
-                        st.session_state.current_analysis_id = persistent_analysis_id
-                    else:  # not_found
-                        logger.warning(f"📊 [状态检查] 分析 {persistent_analysis_id} 未找到，清理状态")
-                        st.session_state.analysis_running = False
-                        st.session_state.current_analysis_id = None
-            else:
-                # 如果无法获取用户名，也清理状态（安全措施）
-                logger.warning(f"⚠️ [状态恢复] 无法获取用户名，清理分析状态")
+            if actual_status == 'running':
+                st.session_state.analysis_running = True
+                st.session_state.current_analysis_id = persistent_analysis_id
+            elif actual_status in ['completed', 'failed']:
+                st.session_state.analysis_running = False
+                st.session_state.current_analysis_id = persistent_analysis_id
+            else:  # not_found
+                logger.warning(f"📊 [状态检查] 分析 {persistent_analysis_id} 未找到，清理状态")
                 st.session_state.analysis_running = False
                 st.session_state.current_analysis_id = None
-                st.session_state.analysis_results = None
     except Exception as e:
         # 如果恢复失败，保持默认值
         logger.warning(f"⚠️ [状态恢复] 恢复分析状态失败: {e}")
@@ -909,7 +883,7 @@ def main():
 
     # 添加调试按钮（仅在调试模式下显示）
     if os.getenv('DEBUG_MODE') == 'true':
-        if st.button("清除会话状态"):
+        if st.button("🔄 清除会话状态"):
             st.session_state.clear()
             st.experimental_rerun()
 
@@ -917,7 +891,7 @@ def main():
     render_header()
 
     # 侧边栏布局 - 标题在最顶部
-    st.sidebar.title("TradingAgents-CN")
+    st.sidebar.title("🤖 TradingAgents-CN")
     st.sidebar.markdown("---")
     
     # 页面导航 - 在标题下方显示用户信息
@@ -927,11 +901,11 @@ def main():
     st.sidebar.markdown("---")
 
     # 添加功能切换标题
-    st.sidebar.markdown("**功能导航**")
+    st.sidebar.markdown("**🎯 功能导航**")
 
     page = st.sidebar.selectbox(
         "切换功能模块",
-        ["股票分析", "批量分析", "配置管理", "缓存管理", "会员管理", "公告管理", "密码管理", "Token统计", "操作日志", "分析结果", "系统状态"],
+        ["📊 股票分析", "📈 批量分析", "⚙️ 配置管理", "💾 缓存管理", "👥 会员管理", "💰 Token统计", "📋 操作日志", "📈 分析结果", "🔧 系统状态"],
         label_visibility="collapsed"
     )
     
@@ -952,9 +926,9 @@ def main():
     st.sidebar.markdown("---")
 
     # 根据选择的页面渲染不同内容
-    if page == "批量分析":
-        # 检查批量分析权限
-        if not require_permission("batch_analysis"):
+    if page == "📈 批量分析":
+        # 检查分析权限
+        if not require_permission("analysis"):
             return
         try:
             from components.batch_analysis_form import render_batch_analysis_form
@@ -968,7 +942,7 @@ def main():
             st.error(f"批量分析模块加载失败: {e}")
             st.info("请确保已安装所有依赖包")
         return
-    elif page == "配置管理":
+    elif page == "⚙️ 配置管理":
         # 检查配置权限
         if not require_permission("config"):
             return
@@ -979,7 +953,7 @@ def main():
             st.error(f"配置管理模块加载失败: {e}")
             st.info("请确保已安装所有依赖包")
         return
-    elif page == "缓存管理":
+    elif page == "💾 缓存管理":
         # 检查管理员权限
         if not require_permission("admin"):
             return
@@ -989,7 +963,7 @@ def main():
         except ImportError as e:
             st.error(f"缓存管理页面加载失败: {e}")
         return
-    elif page == "Token统计":
+    elif page == "💰 Token统计":
         # 检查配置权限
         if not require_permission("config"):
             return
@@ -1000,7 +974,7 @@ def main():
             st.error(f"Token统计页面加载失败: {e}")
             st.info("请确保已安装所有依赖包")
         return
-    elif page == "会员管理":
+    elif page == "👥 会员管理":
         # 仅管理员可访问
         if not require_permission("admin"):
             return
@@ -1011,28 +985,7 @@ def main():
             st.error(f"会员管理模块加载失败: {e}")
             st.info("请确保已安装所有依赖包")
         return
-    elif page == "公告管理":
-        # 仅管理员可访问
-        if not require_permission("admin"):
-            return
-        try:
-            from modules.announcement_management import render_announcement_management
-            render_announcement_management()
-        except ImportError as e:
-            st.error(f"公告管理模块加载失败: {e}")
-            st.info("请确保已安装所有依赖包")
-        return
-    elif page == "密码管理":
-        # 所有登录用户都可以访问（修改自己的密码）
-        # 管理员可以修改他人密码
-        try:
-            from modules.password_management import render_password_management
-            render_password_management()
-        except ImportError as e:
-            st.error(f"密码管理模块加载失败: {e}")
-            st.info("请确保已安装所有依赖包")
-        return
-    elif page == "操作日志":
+    elif page == "📋 操作日志":
         # 检查管理员权限
         if not require_permission("admin"):
             return
@@ -1043,7 +996,7 @@ def main():
             st.error(f"操作日志模块加载失败: {e}")
             st.info("请确保已安装所有依赖包")
         return
-    elif page == "分析结果":
+    elif page == "📈 分析结果":
         # 检查分析权限
         if not require_permission("analysis"):
             return
@@ -1054,11 +1007,11 @@ def main():
             st.error(f"分析结果模块加载失败: {e}")
             st.info("请确保已安装所有依赖包")
         return
-    elif page == "系统状态":
+    elif page == "🔧 系统状态":
         # 检查管理员权限
         if not require_permission("admin"):
             return
-        st.header("系统状态")
+        st.header("🔧 系统状态")
         st.info("系统状态功能开发中...")
         return
 
@@ -1217,20 +1170,14 @@ def main():
                 # 扣点校验（在主线程中执行）
                 try:
                     from utils.auth_manager import auth_manager as _auth
-                    from utils.model_points import get_model_points as _get_model_points
                     current_user = _auth.get_current_user()
                     username = current_user and current_user.get("username")
                     if username:
-                        # 根据选择的模型获取消耗点数
-                        llm_provider = st.session_state.get('llm_provider', 'dashscope')
-                        llm_model = st.session_state.get('llm_model', 'qwen-turbo')
-                        points_cost = _get_model_points(llm_provider, llm_model)
-                        
-                        if not _auth.try_deduct_points(username, points_cost):
-                            st.error(f"点数不足，需要 {points_cost} 点，无法开始分析")
+                        if not _auth.try_deduct_points(username, 1):
+                            st.error("❌ 点数不足，无法开始分析")
                             return
                         else:
-                            st.success(f"已扣除 {points_cost} 点，剩余点数: {_auth.get_user_points(username)}")
+                            st.success(f"💎 已扣除 1 点，剩余点数: {_auth.get_user_points(username)}")
                 except Exception as _e:
                     logger.warning(f"点数扣减失败(将继续执行): {_e}")
                 
@@ -1246,11 +1193,9 @@ def main():
                     st.session_state.show_guide_preference = False
                     logger.info("📖 [界面] 开始分析，自动隐藏使用指南")
 
-                # 生成分析ID（包含用户名以确保用户隔离）
+                # 生成分析ID
                 import uuid
-                current_user = auth_manager.get_current_user()
-                username = current_user.get("username", "unknown") if current_user else "unknown"
-                analysis_id = f"analysis_{username}_{uuid.uuid4().hex[:8]}_{datetime.datetime.now().strftime('%Y%m%d_%H%M%S')}"
+                analysis_id = f"analysis_{uuid.uuid4().hex[:8]}_{datetime.datetime.now().strftime('%Y%m%d_%H%M%S')}"
 
                 # 保存分析ID和表单配置到session state和cookie
                 form_config = st.session_state.get('form_config', {})
@@ -1677,12 +1622,6 @@ def main():
 def render_batch_analysis_page():
     """渲染批量分析页面"""
     
-    # 权限检查（双重检查，确保安全）
-    if not auth_manager.check_permission("batch_analysis"):
-        st.error("❌ 您没有批量分析权限")
-        st.info("💡 请联系管理员为您分配 'batch_analysis' 权限")
-        return
-    
     # 页面标题
     st.header("📈 批量股票分析")
     st.markdown("---")
@@ -1741,60 +1680,30 @@ def render_batch_analysis_page():
     if 'current_batch_id' not in st.session_state:
         st.session_state.current_batch_id = None
     
-    # 0. 认证校验（仅批量分析板块）- 按用户隔离
+    # 0. 认证校验（仅批量分析板块）
     try:
         from utils.license_manager import get_or_create_machine_code, is_activated, verify_and_activate, expected_password
-        
-        # 获取当前用户名（按用户隔离激活）
-        current_user = auth_manager.get_current_user()
-        username = current_user.get("username") if current_user else None
-        
-        if not is_activated(username=username):
+        if not is_activated():
             st.warning("🔒 批量分析功能需激活后使用")
-            
-            # 计算激活码（后台计算，不显示规则）
-            now = datetime.datetime.now()
-            mc = get_or_create_machine_code(username=username)
-            expected_current = expected_password(now, mc)
-            
-            # 简洁显示：只显示机器码和激活码
-            col1, col2 = st.columns(2)
-            with col1:
-                st.info(f"🖥️ **机器码**: `{mc}`")
-            with col2:
-                st.info(f"🔑 **激活码**: `{expected_current}`")
-            
-            st.markdown("---")
-            
-            # 输入激活码
-            pwd = st.text_input(
-                "请输入激活码", 
-                type="password", 
-                placeholder=f"请输入激活码"
-            )
-            
-            # 检测是否误输入机器码
-            if pwd and pwd == mc:
-                st.error(f"❌ 请不要输入机器码！请输入激活码: `{expected_current}`")
-            
-            # 激活按钮
-            if st.button("✅ 激活", type="primary"):
-                if not pwd:
-                    st.error("❌ 请输入激活码")
-                elif pwd == mc:
-                    st.error(f"❌ 请不要输入机器码！请输入激活码: `{expected_current}`")
-                else:
-                    ok, msg = verify_and_activate(pwd, username=username)
+            mc = get_or_create_machine_code()
+            st.info(f"🖥️ 机器码: {mc}")
+            pwd = st.text_input("请输入激活码", type="password", help="联系管理员获取计算规则或按提示计算")
+            col_a, col_b = st.columns(2)
+            with col_a:
+                if st.button("✅ 激活"):
+                    ok, msg = verify_and_activate(pwd)
                     if ok:
                         st.success(msg)
-                        st.rerun()
+                        st.experimental_rerun()
                     else:
-                        st.error("❌ 激活码错误")
+                        st.error(msg)
+            with col_b:
+                if st.button("🧮 查看当前计算样例"):
+                    now = datetime.datetime.now()
+                    st.caption(f"当前时间: {now.strftime('%Y-%m-%d %H:%M')}  计算结果示例: {(expected_password(now, mc))}")
             return
     except Exception as e:
         st.error(f"授权模块异常: {e}")
-        import traceback
-        st.code(traceback.format_exc())
         return
 
     # 1. 批量分析配置区域
@@ -1840,21 +1749,15 @@ def render_batch_analysis_page():
             # 扣点校验（在主线程中执行）
             try:
                 from utils.auth_manager import auth_manager as _auth
-                from utils.model_points import get_model_points as _get_model_points
                 current_user = _auth.get_current_user()
                 username = current_user and current_user.get("username")
                 if username:
-                    # 根据选择的模型获取每个股票消耗的点数
-                    llm_provider = st.session_state.get('llm_provider', 'dashscope')
-                    llm_model = st.session_state.get('llm_model', 'qwen-turbo')
-                    points_per_stock = _get_model_points(llm_provider, llm_model)
-                    need_points = len(form_data['stock_symbols']) * points_per_stock
-                    
+                    need_points = len(form_data['stock_symbols'])
                     if not _auth.try_deduct_points(username, need_points):
-                        st.error(f"点数不足，需要 {need_points} 点（{len(form_data['stock_symbols'])} 个股票 × {points_per_stock} 点/股票），无法开始批量分析")
+                        st.error(f"❌ 点数不足，需要 {need_points} 点，无法开始批量分析")
                         return
                     else:
-                        st.success(f"已扣除 {need_points} 点（{len(form_data['stock_symbols'])} 个股票 × {points_per_stock} 点/股票），剩余点数: {_auth.get_user_points(username)}")
+                        st.success(f"💎 已扣除 {need_points} 点，剩余点数: {_auth.get_user_points(username)}")
             except Exception as _e:
                 logger.warning(f"批量分析点数扣减失败(将继续执行): {_e}")
             

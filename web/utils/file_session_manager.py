@@ -21,28 +21,14 @@ class FileSessionManager:
         self.max_age_hours = 24  # 会话有效期24小时
         
     def _get_browser_fingerprint(self) -> str:
-        """生成浏览器指纹（包含用户名以确保用户隔离）"""
+        """生成浏览器指纹"""
         try:
-            # 获取当前用户名
-            username = "unknown"
-            try:
-                from .auth_manager import auth_manager
-                current_user = auth_manager.get_current_user()
-                if current_user:
-                    username = current_user.get("username", "unknown")
-            except Exception:
-                pass  # 如果无法获取用户名，使用"unknown"
-            
-            # 方法1：使用固定的session标识符（包含用户名）
-            # 检查是否已经有session标识符保存在session_state中（且属于当前用户）
-            fingerprint_key = f"file_session_fingerprint_{username}"
-            if hasattr(st.session_state, fingerprint_key):
-                fingerprint = st.session_state[fingerprint_key]
-                # 验证fingerprint是否属于当前用户
-                if fingerprint.startswith(f"user:{username}_"):
-                    return fingerprint
+            # 方法1：使用固定的session标识符
+            # 检查是否已经有session标识符保存在session_state中
+            if hasattr(st.session_state, 'file_session_fingerprint'):
+                return st.session_state.file_session_fingerprint
 
-            # 方法2：查找最近的session文件（24小时内，且属于当前用户）
+            # 方法2：查找最近的session文件（24小时内）
             current_time = time.time()
             recent_files = []
 
@@ -50,10 +36,7 @@ class FileSessionManager:
                 try:
                     file_age = current_time - session_file.stat().st_mtime
                     if file_age < (24 * 3600):  # 24小时内的文件
-                        # 检查文件名是否包含当前用户名
-                        filename = session_file.stem
-                        if filename.startswith(f"user:{username}_"):
-                            recent_files.append((session_file, file_age))
+                        recent_files.append((session_file, file_age))
                 except:
                     continue
 
@@ -63,29 +46,19 @@ class FileSessionManager:
                 newest_file = recent_files[0][0]
                 fingerprint = newest_file.stem
                 # 保存到session_state以便后续使用
-                st.session_state[fingerprint_key] = fingerprint
+                st.session_state.file_session_fingerprint = fingerprint
                 return fingerprint
 
-            # 方法3：创建新的session（包含用户名）
-            fingerprint = f"user:{username}_session_{uuid.uuid4().hex[:12]}"
-            st.session_state[fingerprint_key] = fingerprint
+            # 方法3：创建新的session
+            fingerprint = f"session_{uuid.uuid4().hex[:12]}"
+            st.session_state.file_session_fingerprint = fingerprint
             return fingerprint
 
         except Exception:
-            # 方法4：最后的fallback（包含用户名）
-            username = "unknown"
-            try:
-                from .auth_manager import auth_manager
-                current_user = auth_manager.get_current_user()
-                if current_user:
-                    username = current_user.get("username", "unknown")
-            except Exception:
-                pass
-            
-            fingerprint = f"user:{username}_fallback_{uuid.uuid4().hex[:8]}"
+            # 方法4：最后的fallback
+            fingerprint = f"fallback_{uuid.uuid4().hex[:8]}"
             if hasattr(st, 'session_state'):
-                fingerprint_key = f"file_session_fingerprint_{username}"
-                st.session_state[fingerprint_key] = fingerprint
+                st.session_state.file_session_fingerprint = fingerprint
             return fingerprint
     
     def _get_session_file_path(self, fingerprint: str) -> Path:
@@ -259,22 +232,11 @@ def get_persistent_analysis_id() -> Optional[str]:
 
                 return analysis_id
         
-        # 3. 最后从Redis/文件恢复最新分析（只恢复当前用户的分析）
-        try:
-            from .auth_manager import auth_manager
-            current_user = auth_manager.get_current_user()
-            username = current_user.get("username") if current_user else None
-        except Exception:
-            username = None
-        
+        # 3. 最后从Redis/文件恢复最新分析
         try:
             from .async_progress_tracker import get_latest_analysis_id
-            latest_id = get_latest_analysis_id(username=username)  # 只获取当前用户的分析
+            latest_id = get_latest_analysis_id()
             if latest_id:
-                # 验证分析ID是否属于当前用户
-                if username and not latest_id.startswith(f"analysis_{username}_"):
-                    logger.warning(f"⚠️ 分析ID {latest_id} 不属于用户 {username}，跳过恢复")
-                    return None
                 st.session_state.current_analysis_id = latest_id
                 return latest_id
         except Exception:

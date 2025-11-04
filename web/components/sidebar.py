@@ -214,135 +214,24 @@ def render_sidebar():
         # AI模型配置
         st.markdown("### 🧠 AI模型配置")
 
-        # LLM提供商选择（带权限检查）
-        try:
-            from web.utils.auth_manager import auth_manager
-            current_user = auth_manager.get_current_user() if auth_manager else None
-            
-            # 获取当前用户的提供商权限
-            if current_user:
-                user_role = current_user.get("role", "user")
-                # 管理员拥有所有提供商权限
-                if user_role == "admin":
-                    allowed_providers = ["dashscope", "deepseek", "google", "openai", "openrouter", "siliconflow", "custom_openai", "qianfan"]
-                else:
-                    # 普通用户使用管理员授权的提供商权限
-                    from pathlib import Path
-                    import json
-                    users_file = Path(__file__).parent.parent / "config" / "users.json"
-                    try:
-                        if users_file.exists():
-                            users_data = json.loads(users_file.read_text(encoding="utf-8"))
-                            username = current_user.get("username")
-                            user_info = users_data.get(username, {})
-                            allowed_providers = user_info.get("provider_permissions", [])
-                        else:
-                            allowed_providers = []
-                    except Exception as e:
-                        logger.warning(f"⚠️ 读取用户提供商权限失败: {e}")
-                        allowed_providers = []
-            else:
-                # 未登录用户，无权限
-                allowed_providers = []
-        except Exception as e:
-            logger.warning(f"⚠️ 获取用户权限失败: {e}")
-            allowed_providers = []
-            current_user = None
-        
-        # 所有可用的提供商
-        all_providers = ["dashscope", "deepseek", "google", "openai", "openrouter", "siliconflow", "custom_openai", "qianfan"]
-        provider_labels = {
-            "dashscope": "阿里百炼",
-            "deepseek": "DeepSeek V3",
-            "google": "Google AI",
-            "openai": "OpenAI",
-            "openrouter": "OpenRouter",
-            "siliconflow": "硅基流动",
-            "custom_openai": "自定义OpenAI端点",
-            "qianfan": "文心一言（千帆）"
-        }
-        
-        # 如果有权限限制，只显示允许的提供商
-        if allowed_providers or (current_user and current_user.get("role") == "admin"):
-            # 管理员或已授权用户，显示所有或授权的提供商
-            display_providers = allowed_providers if allowed_providers else all_providers
-        else:
-            # 普通用户且无授权，显示空列表（会在下面提示）
-            display_providers = []
-        
-        # 如果没有可用的提供商，显示提示
-        if not display_providers and current_user and current_user.get("role") != "admin":
-            st.warning("**您尚未被授权使用任何LLM提供商**")
-            st.info("请联系管理员在「会员管理」中为您授权LLM提供商权限")
-            # 不允许选择，使用默认值但不更新
-            llm_provider = st.session_state.get("llm_provider", "dashscope")
-        else:
-            # 确保当前选择的提供商在允许列表中
-            current_provider = st.session_state.get("llm_provider", "dashscope")
-            if current_provider not in display_providers and display_providers:
-                # 如果当前提供商不在允许列表中，切换到第一个允许的
-                current_provider = display_providers[0]
-                st.session_state.llm_provider = current_provider
-            
-            # 构建选项列表（包含权限状态）
-            provider_options = []
-            provider_index_map = {}
-            for i, provider in enumerate(all_providers):
-                is_allowed = provider in display_providers
-                if is_allowed or current_user and current_user.get("role") == "admin":
-                    # 已授权或管理员，正常显示
-                    label = provider_labels.get(provider, provider)
-                    provider_options.append(label)
-                    provider_index_map[label] = provider
-                else:
-                    # 未授权，显示但标记
-                    label = f"🔒 {provider_labels.get(provider, provider)} (未授权)"
-                    provider_options.append(label)
-                    provider_index_map[label] = provider
-            
-            # 如果当前用户不是管理员且有权限限制，只显示已授权的
-            if current_user and current_user.get("role") != "admin" and allowed_providers:
-                filtered_options = [opt for opt in provider_options if provider_index_map.get(opt) in allowed_providers]
-                filtered_map = {opt: provider_index_map[opt] for opt in filtered_options}
-                
-                try:
-                    current_index = filtered_options.index(provider_labels.get(current_provider, current_provider))
-                except ValueError:
-                    current_index = 0
-                
-                selected_label = st.selectbox(
+        # LLM提供商选择
+        llm_provider = st.selectbox(
             "LLM提供商",
-                    options=filtered_options,
-                    index=current_index,
-                    help="选择AI模型提供商（仅显示您已获得授权的提供商）",
+            options=["dashscope", "deepseek", "google", "openai", "openrouter", "siliconflow", "custom_openai", "qianfan"],
+            index=["dashscope", "deepseek", "google", "openai", "openrouter", "siliconflow", "custom_openai", "qianfan"].index(st.session_state.llm_provider) if st.session_state.llm_provider in ["dashscope", "deepseek", "google", "openai", "openrouter", "siliconflow", "custom_openai", "qianfan"] else 0,
+            format_func=lambda x: {
+                "dashscope": "🇨🇳 阿里百炼",
+                "deepseek": "🚀 DeepSeek V3",
+                "google": "🌟 Google AI",
+                "openai": "🤖 OpenAI",
+                "openrouter": "🌐 OpenRouter",
+                "siliconflow": "🇨🇳 硅基流动",
+                "custom_openai": "🔧 自定义OpenAI端点",
+                "qianfan": "🧠 文心一言（千帆）"
+            }[x],
+            help="选择AI模型提供商",
             key="llm_provider_select"
         )
-                llm_provider = filtered_map.get(selected_label, current_provider)
-            else:
-                # 管理员或显示所有选项（包括未授权的）
-                try:
-                    current_index = provider_options.index(provider_labels.get(current_provider, current_provider))
-                except ValueError:
-                    current_index = 0
-                
-                selected_label = st.selectbox(
-                    "LLM提供商",
-                    options=provider_options,
-                    index=current_index,
-                    help="选择AI模型提供商" + ("（管理员可使用所有提供商）" if current_user and current_user.get("role") == "admin" else ""),
-                    key="llm_provider_select"
-                )
-                llm_provider = provider_index_map.get(selected_label, current_provider)
-            
-            # 检查选择的提供商是否有权限
-            if llm_provider not in display_providers and current_user and current_user.get("role") != "admin":
-                st.error(f"**权限不足**：您未被授权使用「{provider_labels.get(llm_provider, llm_provider)}」")
-                st.info("请联系管理员在「会员管理 → 编辑会员 → LLM提供商授权」中为您授权")
-                # 如果当前选择未授权，恢复为默认或第一个授权的
-                if display_providers:
-                    llm_provider = display_providers[0]
-                else:
-                    llm_provider = st.session_state.get("llm_provider", "dashscope")
 
         # 更新session state和持久化存储
         if st.session_state.llm_provider != llm_provider:
@@ -473,15 +362,15 @@ def render_sidebar():
                 options=google_options,
                 index=current_index,
                 format_func=lambda x: {
-                    "gemini-2.5-pro": "Gemini 2.5 Pro - 最新旗舰模型",
-                    "gemini-2.5-flash": "Gemini 2.5 Flash - 最新快速模型",
-                    "gemini-2.5-flash-lite": "Gemini 2.5 Flash Lite - 轻量快速",
-                    "gemini-2.5-flash-lite-preview-06-17": "Gemini 2.5 Flash Lite Preview - 超快响应 (1.45s)",
-                    "gemini-2.5-pro-002": "Gemini 2.5 Pro-002 - 优化版本",
-                    "gemini-2.5-flash-002": "Gemini 2.5 Flash-002 - 优化快速版",
-                    "gemini-2.0-flash": "Gemini 2.0 Flash - 推荐使用 (1.87s)",
-                    "gemini-1.5-pro": "Gemini 1.5 Pro - 强大性能 (2.25s)",
-                    "gemini-1.5-flash": "Gemini 1.5 Flash - 快速响应 (2.87s)"
+                    "gemini-2.5-pro": "Gemini 2.5 Pro - 🚀 最新旗舰模型",
+                    "gemini-2.5-flash": "Gemini 2.5 Flash - ⚡ 最新快速模型",
+                    "gemini-2.5-flash-lite": "Gemini 2.5 Flash Lite - 💡 轻量快速",
+                    "gemini-2.5-flash-lite-preview-06-17": "Gemini 2.5 Flash Lite Preview - ⚡ 超快响应 (1.45s)",
+                    "gemini-2.5-pro-002": "Gemini 2.5 Pro-002 - 🔧 优化版本",
+                    "gemini-2.5-flash-002": "Gemini 2.5 Flash-002 - ⚡ 优化快速版",
+                    "gemini-2.0-flash": "Gemini 2.0 Flash - 🚀 推荐使用 (1.87s)",
+                    "gemini-1.5-pro": "Gemini 1.5 Pro - ⚖️ 强大性能 (2.25s)",
+                    "gemini-1.5-flash": "Gemini 1.5 Flash - 💨 快速响应 (2.87s)"
                 }[x],
                 help="选择用于分析的Google Gemini模型",
                 key="google_model_select"
@@ -1170,14 +1059,14 @@ def render_sidebar():
         if anthropic_key and anthropic_key != "your_anthropic_api_key_here":
             status, level = validate_api_key(anthropic_key, "anthropic")
             if level == "success":
-                st.success(f"Anthropic: {status}")
+                st.success(f"✅ Anthropic: {status}")
             elif level == "warning":
-                st.warning(f"Anthropic: {status}")
+                st.warning(f"⚠️ Anthropic: {status}")
 
         st.markdown("---")
 
         # 系统信息
-        st.markdown("**系统信息**")
+        st.markdown("**ℹ️ 系统信息**")
         
         st.info(f"""
         **版本**: {get_version()}
@@ -1189,22 +1078,22 @@ def render_sidebar():
         # 管理员功能
         if auth_manager and auth_manager.check_permission("admin"):
             st.markdown("---")
-            st.markdown("### 管理功能")
+            st.markdown("### 🔧 管理功能")
             
-            if st.button("用户活动记录", key="user_activity_btn", use_container_width=True):
+            if st.button("📊 用户活动记录", key="user_activity_btn", use_container_width=True):
                 st.session_state.page = "user_activity"
             
-            if st.button("系统设置", key="system_settings_btn", use_container_width=True):
+            if st.button("⚙️ 系统设置", key="system_settings_btn", use_container_width=True):
                 st.session_state.page = "system_settings"
         
         # 帮助链接
-        st.markdown("**帮助资源**")
+        st.markdown("**📚 帮助资源**")
         
         st.markdown("""
-        - [使用文档](https://github.com/TauricResearch/TradingAgents)
-        - [问题反馈](https://github.com/TauricResearch/TradingAgents/issues)
-        - [讨论社区](https://github.com/TauricResearch/TradingAgents/discussions)
-        - [API密钥配置](../docs/security/api_keys_security.md)
+        - [📖 使用文档](https://github.com/TauricResearch/TradingAgents)
+        - [🐛 问题反馈](https://github.com/TauricResearch/TradingAgents/issues)
+        - [💬 讨论社区](https://github.com/TauricResearch/TradingAgents/discussions)
+        - [🔧 API密钥配置](../docs/security/api_keys_security.md)
         """)
     
     # 确保返回session state中的值，而不是局部变量

@@ -41,7 +41,7 @@ class AuthManager:
                 "admin": {
                     "password_hash": self._hash_password("admin123"),
                     "role": "admin",
-                    "permissions": ["analysis", "batch_analysis", "config", "admin"],
+                    "permissions": ["analysis", "config", "admin"],
                     "points": 0,
                     "created_at": time.time()
                 },
@@ -440,67 +440,6 @@ class AuthManager:
             st.error(f"❌ 您没有 '{permission}' 权限，请联系管理员")
             return False
         return True
-    
-    def change_password(self, username: str, old_password: str, new_password: str, require_old_password: bool = True) -> Tuple[bool, str]:
-        """
-        修改用户密码
-        
-        Args:
-            username: 用户名
-            old_password: 旧密码（修改自己的密码时需要验证）
-            new_password: 新密码
-            require_old_password: 是否需要验证旧密码（管理员修改他人密码时可设为False）
-            
-        Returns:
-            (是否成功, 消息)
-        """
-        users = self._load_users()
-        
-        if username not in users:
-            logger.warning(f"⚠️ 用户不存在: {username}")
-            return False, "用户不存在"
-        
-        user_info = users[username]
-        
-        # 如果需要验证旧密码
-        if require_old_password:
-            old_password_hash = self._hash_password(old_password)
-            if old_password_hash != user_info["password_hash"]:
-                logger.warning(f"⚠️ 旧密码错误: {username}")
-                return False, "旧密码错误"
-        
-        # 验证新密码强度
-        if not new_password or len(new_password) < 6:
-            return False, "新密码长度至少需要6个字符"
-        
-        # 更新密码
-        user_info["password_hash"] = self._hash_password(new_password)
-        
-        # 如果修改的是当前登录用户，更新session state
-        current_user = self.get_current_user()
-        if current_user and current_user.get("username") == username:
-            # 密码已更新，但需要重新登录
-            logger.info(f"✅ 用户 {username} 密码已修改")
-        
-        if self._save_users(users):
-            logger.info(f"✅ 用户 {username} 密码修改成功")
-            return True, "密码修改成功"
-        else:
-            logger.error(f"❌ 用户 {username} 密码修改失败")
-            return False, "保存密码失败"
-    
-    def change_password_by_admin(self, target_username: str, new_password: str) -> Tuple[bool, str]:
-        """
-        管理员修改其他用户密码（不需要旧密码验证）
-        
-        Args:
-            target_username: 目标用户名
-            new_password: 新密码
-            
-        Returns:
-            (是否成功, 消息)
-        """
-        return self.change_password(target_username, "", new_password, require_old_password=False)
 
 # 全局认证管理器实例
 auth_manager = AuthManager()

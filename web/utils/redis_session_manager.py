@@ -57,22 +57,12 @@ class RedisSessionManager:
             return False
     
     def _get_session_key(self) -> str:
-        """生成会话键（包含用户名以确保用户隔离）"""
+        """生成会话键"""
         try:
-            # 获取当前用户名
-            username = "unknown"
-            try:
-                from .auth_manager import auth_manager
-                current_user = auth_manager.get_current_user()
-                if current_user:
-                    username = current_user.get("username", "unknown")
-            except Exception:
-                pass  # 如果无法获取用户名，使用"unknown"
-            
             # 尝试获取Streamlit的session信息
             if hasattr(st, 'session_state') and hasattr(st.session_state, '_get_session_id'):
                 session_id = st.session_state._get_session_id()
-                return f"{self.session_prefix}user:{username}:{session_id}"
+                return f"{self.session_prefix}{session_id}"
             
             # 如果无法获取session_id，使用IP+UserAgent的hash
             # 注意：这是一个fallback方案，可能不够精确
@@ -82,25 +72,16 @@ class RedisSessionManager:
             user_agent = headers.get('User-Agent', 'unknown')
             x_forwarded_for = headers.get('X-Forwarded-For', 'unknown')
             
-            # 生成基于用户信息的唯一标识（包含用户名）
-            unique_str = f"{username}_{user_agent}_{x_forwarded_for}_{int(time.time() / 3600)}"  # 按小时分组
+            # 生成基于用户信息的唯一标识
+            unique_str = f"{user_agent}_{x_forwarded_for}_{int(time.time() / 3600)}"  # 按小时分组
             session_hash = hashlib.md5(unique_str.encode()).hexdigest()[:16]
             
-            return f"{self.session_prefix}user:{username}:fallback_{session_hash}"
+            return f"{self.session_prefix}fallback_{session_hash}"
             
         except Exception:
-            # 最后的fallback：使用时间戳和用户名
-            username = "unknown"
-            try:
-                from .auth_manager import auth_manager
-                current_user = auth_manager.get_current_user()
-                if current_user:
-                    username = current_user.get("username", "unknown")
-            except Exception:
-                pass
-            
+            # 最后的fallback：使用时间戳
             timestamp_hash = hashlib.md5(str(int(time.time() / 3600)).encode()).hexdigest()[:16]
-            return f"{self.session_prefix}user:{username}:timestamp_{timestamp_hash}"
+            return f"{self.session_prefix}timestamp_{timestamp_hash}"
     
     def save_analysis_state(self, analysis_id: str, status: str = "running",
                            stock_symbol: str = "", market_type: str = "",
@@ -290,21 +271,10 @@ def get_persistent_analysis_id() -> Optional[str]:
                 st.session_state.last_market_type = session_data.get('market_type', '')
                 return analysis_id
         
-        # 3. 最后从Redis/文件恢复最新分析（只恢复当前用户的分析）
-        try:
-            from .auth_manager import auth_manager
-            current_user = auth_manager.get_current_user()
-            username = current_user.get("username") if current_user else None
-        except Exception:
-            username = None
-        
+        # 3. 最后从Redis/文件恢复最新分析
         from .async_progress_tracker import get_latest_analysis_id
-        latest_id = get_latest_analysis_id(username=username)  # 只获取当前用户的分析
+        latest_id = get_latest_analysis_id()
         if latest_id:
-            # 验证分析ID是否属于当前用户
-            if username and not latest_id.startswith(f"analysis_{username}_"):
-                logger.warning(f"⚠️ 分析ID {latest_id} 不属于用户 {username}，跳过恢复")
-                return None
             st.session_state.current_analysis_id = latest_id
             return latest_id
         
